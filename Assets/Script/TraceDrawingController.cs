@@ -10,7 +10,6 @@ public sealed class TraceDrawingController : MonoBehaviour
     [SerializeField] private Color backgroundColor = new(0.055f, 0.12f, 0.2f, 1f);
     [SerializeField] private Color strokeColor = new(0.18f, 0.89f, 0.9f, 1f);
     [SerializeField] private Color cursorColor = new(1f, 0.82f, 0.4f, 0.35f);
-    [SerializeField, Min(0.02f)] private float strokeWidth = 0.16f;
 
     private readonly List<Vector2> strokePoints = new();
 
@@ -123,7 +122,7 @@ public sealed class TraceDrawingController : MonoBehaviour
 
         strokeRenderer = strokeObject.AddComponent<LineRenderer>();
         strokeRenderer.useWorldSpace = true;
-        strokeRenderer.widthMultiplier = strokeWidth;
+        strokeRenderer.widthMultiplier = traceTarget.ToleranceRadius * 2f;
         strokeRenderer.startColor = strokeColor;
         strokeRenderer.endColor = strokeColor;
         strokeRenderer.numCapVertices = 12;
