@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &1005204865
+--- !u!1 &838869660
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,166 +127,63 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1005204869}
-  - component: {fileID: 1005204868}
-  - component: {fileID: 1005204867}
-  - component: {fileID: 1005204866}
+  - component: {fileID: 838869664}
+  - component: {fileID: 838869663}
+  - component: {fileID: 838869662}
+  - component: {fileID: 838869661}
   m_Layer: 0
-  m_Name: Trace Game
+  m_Name: Trace Enemy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1005204866
+--- !u!114 &838869661
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1005204865}
+  m_GameObject: {fileID: 838869660}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30998a816e1d76b4187ba071353c3f1d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TraceDrawingController
-  backgroundColor: {r: 0.055, g: 0.12, b: 0.2, a: 1}
-  strokeColor: {r: 0.18, g: 0.89, b: 0.9, a: 1}
-  cursorColor: {r: 1, g: 0.82, b: 0.4, a: 0.35}
-  strokeWidth: 0.16
---- !u!114 &1005204867
+  m_Script: {fileID: 11500000, guid: d6439823b5194410a215ce45cf010422, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::TraceDamagePopupSpawner
+--- !u!114 &838869662
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1005204865}
+  m_GameObject: {fileID: 838869660}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7e4e674e25fc7b143a465141cf915961, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TraceTarget
-  pattern: 0
-  pointCount: 128
-  toleranceRadius: 0.42
-  lineColor: {r: 0.58, g: 0.62, b: 0.66, a: 0.85}
---- !u!120 &1005204868
-LineRenderer:
-  serializedVersion: 3
+  m_Script: {fileID: 11500000, guid: 9a54c74d9d4f4781bb13823f5eb84e10, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::TraceEnemyView
+  normalColor: {r: 0.88, g: 0.18, b: 0.2, a: 1}
+  preparingColor: {r: 1, g: 0.48, b: 0.12, a: 1}
+--- !u!114 &838869663
+MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1005204865}
+  m_GameObject: {fileID: 838869660}
   m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 0
-  m_LightProbeUsage: 0
-  m_ReflectionProbeUsage: 0
-  m_RayTracingMode: 0
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 0}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_MaskInteraction: 0
-  m_Positions:
-  - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 1}
-  m_Parameters:
-    serializedVersion: 3
-    widthMultiplier: 1
-    widthCurve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0.33333334
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    colorGradient:
-      serializedVersion: 2
-      key0: {r: 1, g: 1, b: 1, a: 1}
-      key1: {r: 1, g: 1, b: 1, a: 1}
-      key2: {r: 0, g: 0, b: 0, a: 0}
-      key3: {r: 0, g: 0, b: 0, a: 0}
-      key4: {r: 0, g: 0, b: 0, a: 0}
-      key5: {r: 0, g: 0, b: 0, a: 0}
-      key6: {r: 0, g: 0, b: 0, a: 0}
-      key7: {r: 0, g: 0, b: 0, a: 0}
-      ctime0: 0
-      ctime1: 65535
-      ctime2: 0
-      ctime3: 0
-      ctime4: 0
-      ctime5: 0
-      ctime6: 0
-      ctime7: 0
-      atime0: 0
-      atime1: 65535
-      atime2: 0
-      atime3: 0
-      atime4: 0
-      atime5: 0
-      atime6: 0
-      atime7: 0
-      m_Mode: 0
-      m_ColorSpace: -1
-      m_NumColorKeys: 2
-      m_NumAlphaKeys: 2
-    numCornerVertices: 0
-    numCapVertices: 0
-    alignment: 0
-    textureMode: 0
-    textureScale: {x: 1, y: 1}
-    shadowBias: 0.5
-    generateLightingData: 0
-  m_UseWorldSpace: 1
-  m_Loop: 0
-  m_ApplyActiveColorSpace: 1
---- !u!4 &1005204869
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f51d45a234424a0db5d1e17a477ba2c3, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::TraceEnemyHealth
+  maxHealth: 1000
+--- !u!4 &838869664
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1005204865}
+  m_GameObject: {fileID: 838869660}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -295,7 +192,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1757168208
+--- !u!1 &1006434825
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -303,76 +200,108 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1757168210}
-  - component: {fileID: 1757168209}
+  - component: {fileID: 1006434831}
+  - component: {fileID: 1006434830}
+  - component: {fileID: 1006434829}
+  - component: {fileID: 1006434828}
+  - component: {fileID: 1006434827}
+  - component: {fileID: 1006434826}
   m_Layer: 0
-  m_Name: Main Camera
-  m_TagString: MainCamera
+  m_Name: Battle Systems
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!20 &1757168209
-Camera:
+--- !u!114 &1006434826
+MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1757168208}
+  m_GameObject: {fileID: 1006434825}
   m_Enabled: 1
-  serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
-  m_projectionMatrixMode: 1
-  m_GateFitMode: 2
-  m_FOVAxisMode: 0
-  m_Iso: 200
-  m_ShutterSpeed: 0.005
-  m_Aperture: 16
-  m_FocusDistance: 10
-  m_FocalLength: 50
-  m_BladeCount: 5
-  m_Curvature: {x: 2, y: 11}
-  m_BarrelClipping: 0.25
-  m_Anamorphism: 0
-  m_SensorSize: {x: 36, y: 24}
-  m_LensShift: {x: 0, y: 0}
-  m_NormalizedViewPortRect:
-    serializedVersion: 2
-    x: 0
-    y: 0
-    width: 1
-    height: 1
-  near clip plane: 0.3
-  far clip plane: 1000
-  field of view: 60
-  orthographic: 1
-  orthographic size: 3.65
-  m_Depth: 0
-  m_CullingMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_RenderingPath: -1
-  m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 0
-  m_TargetEye: 3
-  m_HDR: 1
-  m_AllowMSAA: 1
-  m_AllowDynamicResolution: 0
-  m_ForceIntoRT: 0
-  m_OcclusionCulling: 1
-  m_StereoConvergence: 10
-  m_StereoSeparation: 0.022
---- !u!4 &1757168210
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 541fcdcd6b39414392f87d527376f567, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::TraceBattleHud
+  battleController: {fileID: 1006434827}
+  playerHealth: {fileID: 1006434830}
+  enemyHealth: {fileID: 838869663}
+  enemyAttackController: {fileID: 1006434829}
+--- !u!114 &1006434827
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1006434825}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc0c1c2b40b07774a8dfe35e770b5b6e, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::TraceBattleController
+  playerHealth: {fileID: 1006434830}
+  enemyAttackController: {fileID: 1006434829}
+  enemyHealth: {fileID: 838869663}
+  enemyView: {fileID: 838869662}
+  damageSettings: {fileID: 11400000, guid: 4c10ad9291871c449bfbb33f287607ed, type: 2}
+  attackFlightDuration: 0.65
+  playerAttackResultDuration: 1.4
+--- !u!114 &1006434828
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1006434825}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d21b1f503984bc6b4b8cc6ef7c7e7a8, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::TraceMagicCircleSelectionController
+  magicCircles:
+  - {fileID: 11400000, guid: d1e5e9c0f8038214e8840ae0b591618a, type: 2}
+  - {fileID: 11400000, guid: a1f50318ea6dc0a43bf1d03877aab47b, type: 2}
+  - {fileID: 11400000, guid: e727da0b28cea754080d81f880ac0f19, type: 2}
+--- !u!114 &1006434829
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1006434825}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b9c3fba6a3048fc9fa6f26bd18aad2e, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::TraceEnemyAttackController
+  attackDamage: 100
+  windupDuration: 1
+  resultDuration: 1
+--- !u!114 &1006434830
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1006434825}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b744515e0f84475ac3ae53eeb67e795, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::TracePlayerHealth
+  maxHealth: 500
+--- !u!4 &1006434831
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1757168208}
+  m_GameObject: {fileID: 1006434825}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -382,5 +311,5 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1757168210}
-  - {fileID: 1005204869}
+  - {fileID: 1006434831}
+  - {fileID: 838869664}

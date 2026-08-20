@@ -1,16 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum TracePattern
-{
-    SShape,
-    Circle,
-}
-
 [RequireComponent(typeof(LineRenderer))]
 public sealed class TraceTarget : MonoBehaviour
 {
-    [SerializeField] private TracePattern pattern = TracePattern.SShape;
+    [SerializeField] private TracePattern pattern = TracePattern.UprightTriangle;
     [SerializeField, Min(16)] private int pointCount = 128;
     [SerializeField, Min(0.05f)] private float toleranceRadius = 0.42f;
     [SerializeField] private Color lineColor = new(0.58f, 0.62f, 0.66f, 0.85f);
@@ -19,7 +13,8 @@ public sealed class TraceTarget : MonoBehaviour
     private LineRenderer targetRenderer;
 
     public IReadOnlyList<Vector2> Points => points;
-    public bool IsClosed => pattern == TracePattern.Circle;
+    public TracePattern Pattern => pattern;
+    public bool IsClosed => true;
     public float ToleranceRadius => toleranceRadius;
 
     private void Awake()
@@ -33,27 +28,53 @@ public sealed class TraceTarget : MonoBehaviour
         Refresh();
     }
 
+    public void SetVisible(bool visible)
+    {
+        targetRenderer ??= GetComponent<LineRenderer>();
+        targetRenderer.enabled = visible;
+    }
+
     public static List<Vector2> CreatePatternPoints(TracePattern targetPattern, int count)
     {
         count = Mathf.Max(16, count);
         var result = new List<Vector2>(count);
 
-        for (var index = 0; index < count; index++)
+        if (targetPattern == TracePattern.Circle)
         {
-            var t = targetPattern == TracePattern.Circle
-                ? index / (float)count
-                : index / (float)(count - 1);
-
-            if (targetPattern == TracePattern.Circle)
+            for (var index = 0; index < count; index++)
             {
+                var t = index / (float)count;
                 var angle = Mathf.PI * 2f * t + Mathf.PI * 0.5f;
                 result.Add(new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 2.05f);
             }
-            else
+        }
+        else
+        {
+            const float radius = 2.05f;
+            var horizontal = Mathf.Sqrt(3f) * radius * 0.5f;
+            var vertices = targetPattern == TracePattern.UprightTriangle
+                ? new[]
+                {
+                    new Vector2(0f, radius),
+                    new Vector2(horizontal, -radius * 0.5f),
+                    new Vector2(-horizontal, -radius * 0.5f),
+                }
+                : new[]
+                {
+                    new Vector2(0f, -radius),
+                    new Vector2(-horizontal, radius * 0.5f),
+                    new Vector2(horizontal, radius * 0.5f),
+                };
+
+            for (var index = 0; index < count; index++)
             {
-                var x = 1.55f * Mathf.Sin(Mathf.PI * 2f * t);
-                var y = Mathf.Lerp(2.45f, -2.45f, t);
-                result.Add(new Vector2(x, y));
+                var edgePosition = index / (float)count * vertices.Length;
+                var edgeIndex = Mathf.FloorToInt(edgePosition);
+                var edgeProgress = edgePosition - edgeIndex;
+                result.Add(Vector2.Lerp(
+                    vertices[edgeIndex],
+                    vertices[(edgeIndex + 1) % vertices.Length],
+                    edgeProgress));
             }
         }
 

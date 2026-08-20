@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -5,7 +6,7 @@ using UnityEngine;
 public sealed class TraceDrawingController : MonoBehaviour
 {
     private const float MinimumPointDistance = 0.045f;
-    private const float TopUiHeight = 150f;
+    private const float TopUiHeight = 190f;
 
     [SerializeField] private Color backgroundColor = new(0.055f, 0.12f, 0.2f, 1f);
     [SerializeField] private Color strokeColor = new(0.18f, 0.89f, 0.9f, 1f);
@@ -18,8 +19,12 @@ public sealed class TraceDrawingController : MonoBehaviour
     private LineRenderer strokeRenderer;
     private GameObject cursorObject;
     private bool isDrawing;
-    private bool roundComplete;
-    private float resultPercentage;
+
+    public event Action<TraceStrokeResult> StrokeCompleted;
+
+    public bool InputEnabled { get; private set; }
+    public Color StrokeColor => strokeColor;
+    public float StrokeWidth => traceTarget.ToleranceRadius * 2f;
 
     private void Awake()
     {
@@ -29,12 +34,13 @@ public sealed class TraceDrawingController : MonoBehaviour
         ConfigureCamera();
         CreateStrokeRenderer();
         CreateCursor();
-        SelectPattern(TracePattern.SShape);
+        PreparePattern(TracePattern.UprightTriangle);
+        SetInputEnabled(false);
     }
 
     private void Update()
     {
-        if (roundComplete || !TryReadPointer(out var screenPosition, out var began, out var held, out var ended))
+        if (!InputEnabled || !TryReadPointer(out var screenPosition, out var began, out var held, out var ended))
         {
             return;
         }
@@ -68,38 +74,25 @@ public sealed class TraceDrawingController : MonoBehaviour
         }
     }
 
-    private void OnGUI()
+    public void PreparePattern(TracePattern pattern)
     {
-        var panelWidth = Mathf.Min(520f, Screen.width - 24f);
-        var panelHeight = roundComplete ? 142f : 106f;
+        traceTarget.SetPattern(pattern);
+        traceTarget.SetVisible(true);
+        ClearCurrentStroke();
+    }
 
-        GUILayout.BeginArea(new Rect(12f, 12f, panelWidth, panelHeight), GUI.skin.box);
-        GUILayout.Label("お手本を一筆でなぞってください（指を離すと判定）");
-
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("S字", GUILayout.Height(32f)))
+    public void SetInputEnabled(bool enabled)
+    {
+        InputEnabled = enabled;
+        if (!enabled)
         {
-            SelectPattern(TracePattern.SShape);
+            ClearCurrentStroke();
         }
+    }
 
-        if (GUILayout.Button("円形", GUILayout.Height(32f)))
-        {
-            SelectPattern(TracePattern.Circle);
-        }
-        GUILayout.EndHorizontal();
-
-        if (roundComplete)
-        {
-            GUILayout.BeginHorizontal();
-            GUILayout.Label($"一致率  {Mathf.RoundToInt(resultPercentage)}%", GUILayout.Height(30f));
-            if (GUILayout.Button("もう一度", GUILayout.Width(120f), GUILayout.Height(30f)))
-            {
-                ResetRound();
-            }
-            GUILayout.EndHorizontal();
-        }
-
-        GUILayout.EndArea();
+    public void SetTargetVisible(bool visible)
+    {
+        traceTarget.SetVisible(visible);
     }
 
     private void ConfigureCamera()
@@ -122,7 +115,7 @@ public sealed class TraceDrawingController : MonoBehaviour
 
         strokeRenderer = strokeObject.AddComponent<LineRenderer>();
         strokeRenderer.useWorldSpace = true;
-        strokeRenderer.widthMultiplier = traceTarget.ToleranceRadius * 2f;
+        strokeRenderer.widthMultiplier = StrokeWidth;
         strokeRenderer.startColor = strokeColor;
         strokeRenderer.endColor = strokeColor;
         strokeRenderer.numCapVertices = 12;
@@ -140,47 +133,17 @@ public sealed class TraceDrawingController : MonoBehaviour
         cursorObject.transform.SetParent(transform, false);
 
         var spriteRenderer = cursorObject.AddComponent<SpriteRenderer>();
-        spriteRenderer.sprite = CreateCircleSprite(64);
+        spriteRenderer.sprite = TraceCircleSpriteFactory.Create(64, "Runtime Trace Cursor Texture");
         spriteRenderer.color = cursorColor;
         spriteRenderer.sortingOrder = 2;
 
-        var diameter = traceTarget.ToleranceRadius * 2f;
-        cursorObject.transform.localScale = new Vector3(diameter, diameter, 1f);
+        cursorObject.transform.localScale = new Vector3(StrokeWidth, StrokeWidth, 1f);
         cursorObject.SetActive(false);
-    }
-
-    private static Sprite CreateCircleSprite(int size)
-    {
-        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-        {
-            name = "Runtime Trace Cursor Texture",
-            filterMode = FilterMode.Bilinear,
-            wrapMode = TextureWrapMode.Clamp,
-        };
-
-        var pixels = new Color[size * size];
-        var center = (size - 1) * 0.5f;
-        var radius = size * 0.5f;
-
-        for (var y = 0; y < size; y++)
-        {
-            for (var x = 0; x < size; x++)
-            {
-                var distance = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
-                var alpha = Mathf.Clamp01(radius - distance);
-                pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
-            }
-        }
-
-        texture.SetPixels(pixels);
-        texture.Apply();
-        return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
     }
 
     private void BeginStroke(Vector2 worldPosition)
     {
-        strokePoints.Clear();
-        strokeRenderer.positionCount = 0;
+        ClearCurrentStroke();
         isDrawing = true;
         cursorObject.SetActive(true);
         AddStrokePoint(worldPosition, true);
@@ -204,29 +167,30 @@ public sealed class TraceDrawingController : MonoBehaviour
     private void FinishStroke()
     {
         isDrawing = false;
-        roundComplete = true;
         cursorObject.SetActive(false);
-        resultPercentage = TraceScorer.Calculate(
+
+        var accuracy = TraceScorer.Calculate(
             traceTarget.Points,
             traceTarget.IsClosed,
             strokePoints,
             traceTarget.ToleranceRadius);
+        var result = new TraceStrokeResult(strokePoints.ToArray(), accuracy);
+        StrokeCompleted?.Invoke(result);
     }
 
-    private void SelectPattern(TracePattern pattern)
-    {
-        traceTarget.SetPattern(pattern);
-        ResetRound();
-    }
-
-    private void ResetRound()
+    private void ClearCurrentStroke()
     {
         isDrawing = false;
-        roundComplete = false;
-        resultPercentage = 0f;
         strokePoints.Clear();
-        strokeRenderer.positionCount = 0;
-        cursorObject.SetActive(false);
+        if (strokeRenderer != null)
+        {
+            strokeRenderer.positionCount = 0;
+        }
+
+        if (cursorObject != null)
+        {
+            cursorObject.SetActive(false);
+        }
     }
 
     private Vector2 ScreenToWorld(Vector2 screenPosition)
