@@ -36,49 +36,7 @@ public sealed class TraceTarget : MonoBehaviour
 
     public static List<Vector2> CreatePatternPoints(TracePattern targetPattern, int count)
     {
-        count = Mathf.Max(16, count);
-        var result = new List<Vector2>(count);
-
-        if (targetPattern == TracePattern.Circle)
-        {
-            for (var index = 0; index < count; index++)
-            {
-                var t = index / (float)count;
-                var angle = Mathf.PI * 2f * t + Mathf.PI * 0.5f;
-                result.Add(new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 2.05f);
-            }
-        }
-        else
-        {
-            const float radius = 2.05f;
-            var horizontal = Mathf.Sqrt(3f) * radius * 0.5f;
-            var vertices = targetPattern == TracePattern.UprightTriangle
-                ? new[]
-                {
-                    new Vector2(0f, radius),
-                    new Vector2(horizontal, -radius * 0.5f),
-                    new Vector2(-horizontal, -radius * 0.5f),
-                }
-                : new[]
-                {
-                    new Vector2(0f, -radius),
-                    new Vector2(-horizontal, radius * 0.5f),
-                    new Vector2(horizontal, radius * 0.5f),
-                };
-
-            for (var index = 0; index < count; index++)
-            {
-                var edgePosition = index / (float)count * vertices.Length;
-                var edgeIndex = Mathf.FloorToInt(edgePosition);
-                var edgeProgress = edgePosition - edgeIndex;
-                result.Add(Vector2.Lerp(
-                    vertices[edgeIndex],
-                    vertices[(edgeIndex + 1) % vertices.Length],
-                    edgeProgress));
-            }
-        }
-
-        return result;
+        return TracePatternPointFactory.Create(targetPattern, count, Vector2.zero, 2.05f);
     }
 
     private void Refresh()

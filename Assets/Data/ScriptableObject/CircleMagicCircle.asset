@@ -13,6 +13,10 @@ MonoBehaviour:
   m_Name: CircleMagicCircle
   m_EditorClassIdentifier: Assembly-CSharp::TraceMagicCircleDefinition
   displayName: "\u5186\u306E\u9B54\u6CD5\u9663"
-  pattern: 2
   basePower: 150
   drawCount: 3
+  shapes:
+  - pattern: 2
+    position: {x: 0, y: 0}
+    size: 2.05
+    usage: 0
