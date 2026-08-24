@@ -31,6 +31,8 @@ public sealed class TraceSystem : MonoBehaviour
     private Coroutine collectionCoroutine;
 
     public event Action<TraceStrokeResult[]> BatchCompleted;
+    public event Action TracingAvailable;
+    public event Action TracingCompleted;
 
     public bool InputEnabled { get; private set; }
     public int CompletedCount => completedStrokes.Count;
@@ -122,6 +124,7 @@ public sealed class TraceSystem : MonoBehaviour
         }
 
         InputEnabled = true;
+        TracingAvailable?.Invoke();
     }
 
     public void SetInputEnabled(bool enabled)
@@ -194,6 +197,7 @@ public sealed class TraceSystem : MonoBehaviour
         ClearCurrentLine();
 
         InputEnabled = false;
+        TracingCompleted?.Invoke();
         isCollecting = true;
         collectionCoroutine = StartCoroutine(MoveLineToDestination(completedStrokes.Count - 1));
     }
@@ -252,6 +256,7 @@ public sealed class TraceSystem : MonoBehaviour
         {
             lastDrawingSeconds = 0f;
             InputEnabled = true;
+            TracingAvailable?.Invoke();
             yield break;
         }
 

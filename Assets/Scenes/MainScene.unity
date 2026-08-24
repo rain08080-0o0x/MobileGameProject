@@ -130,7 +130,7 @@ GameObject:
   - component: {fileID: 838869662}
   - component: {fileID: 838869661}
   m_Layer: 0
-  m_Name: Scene Loader
+  m_Name: SceneRoot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -150,6 +150,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TraceSceneLoader
   drawingSceneName: TraceSysTest
   battleSceneName: BattleScene
+  battleUiMode: 0
+  numericUiSceneName: NumericHudScene
+  barUiSceneName: BarHudScene
 --- !u!4 &838869662
 Transform:
   m_ObjectHideFlags: 0
