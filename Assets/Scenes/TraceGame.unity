@@ -153,7 +153,6 @@ MonoBehaviour:
   backgroundColor: {r: 0.055, g: 0.12, b: 0.2, a: 1}
   strokeColor: {r: 0.18, g: 0.89, b: 0.9, a: 1}
   cursorColor: {r: 1, g: 0.82, b: 0.4, a: 0.35}
-  strokeWidth: 0.16
 --- !u!114 &1005204867
 MonoBehaviour:
   m_ObjectHideFlags: 0

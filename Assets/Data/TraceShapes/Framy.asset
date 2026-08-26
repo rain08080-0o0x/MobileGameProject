@@ -1,0 +1,270 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1bd6de283634dfba5cd093887c02e0e, type: 3}
+  m_Name: Framy
+  m_EditorClassIdentifier: Assembly-CSharp::TraceMagicCircleDefinition
+  displayName: "\u30D5\u30EC\u30FC\u30DF\u30FC"
+  basePower: 100
+  drawCount: 3
+  shapes:
+  - pattern: 3
+    position: {x: -3.6955943, y: 1.7943925}
+    size: 2.05
+    rectangleAspectRatio: 1.5
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: -5.201602, y: 3.3431244}
+    size: 0.7837114
+    rectangleAspectRatio: 0.7410564
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: -2.2109478, y: 3.3217623}
+    size: 0.7409878
+    rectangleAspectRatio: 1
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: -5.724966, y: 0.7583443}
+    size: 0.40987957
+    rectangleAspectRatio: 2.350924
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: -6.226969, y: 0.9933243}
+    size: 0.17489994
+    rectangleAspectRatio: 2.5999997
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 2
+    position: {x: -4.496662, y: 1.9118822}
+    size: 0.1
+    rectangleAspectRatio: 1.5
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 2
+    position: {x: -3.193591, y: 1.9118826}
+    size: 0.1
+    rectangleAspectRatio: 1.5
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: -0.2990649, y: -0.45927936}
+    size: 1.2536714
+    rectangleAspectRatio: 1.9411769
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: -2.3925235, y: -2.7877169}
+    size: 1
+    rectangleAspectRatio: 0.3458272
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: -1.4526032, y: -2.7877166}
+    size: 1
+    rectangleAspectRatio: 0.32443237
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 0.68357825, y: -2.7877164}
+    size: 1
+    rectangleAspectRatio: 0.31375167
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 1.719626, y: -2.7770352}
+    size: 1
+    rectangleAspectRatio: 0.3457947
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 2.7449937, y: 0.84379184}
+    size: 0.44192222
+    rectangleAspectRatio: 2.3051374
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 0.61949295, y: 3.919893}
+    size: 0.9225633
+    rectangleAspectRatio: 0.13134858
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 1.1535368, y: 4.71028}
+    size: 0.12149572
+    rectangleAspectRatio: 3.365224
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 1.1321759, y: 4.0267024}
+    size: 0.12149477
+    rectangleAspectRatio: 3.0219924
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 2.3177574, y: 3.6101465}
+    size: 0.11081433
+    rectangleAspectRatio: 2.831334
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 1.8584782, y: 3.1188252}
+    size: 0.60213614
+    rectangleAspectRatio: 0.23725066
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 2.3177574, y: 3.1508677}
+    size: 0.089452356
+    rectangleAspectRatio: 3.507462
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 2.734312, y: 3.2897196}
+    size: 0.23898506
+    rectangleAspectRatio: 0.4303417
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 11
+    position: {x: 0, y: 0}
+    size: 2.05
+    rectangleAspectRatio: 1.5
+    lineStart: {x: 2.6101463, y: 3.05474}
+    lineEnd: {x: 3.0267024, y: 2.7489986}
+    usage: 0
+  - pattern: 11
+    position: {x: 0, y: 0}
+    size: 2.05
+    rectangleAspectRatio: 1.5
+    lineStart: {x: 2.5246985, y: 2.9372501}
+    lineEnd: {x: 2.9412549, y: 2.6208274}
+    usage: 0
+  - pattern: 11
+    position: {x: 0, y: 0}
+    size: 2.05
+    rectangleAspectRatio: 1.5
+    lineStart: {x: 3.0160217, y: 2.7449934}
+    lineEnd: {x: 2.9412549, y: 2.6315084}
+    usage: 0
+  - pattern: 11
+    position: {x: 0, y: 0}
+    size: 2.05
+    rectangleAspectRatio: 1.5
+    lineStart: {x: 2.620828, y: 3.0547397}
+    lineEnd: {x: 2.5353808, y: 2.919893}
+    usage: 0
+  - pattern: 7
+    position: {x: 3.3751667, y: 3.1081445}
+    size: 0.5594125
+    rectangleAspectRatio: 0.23627888
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 4.090787, y: 3.1188254}
+    size: 0.559412
+    rectangleAspectRatio: 0.21718554
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 3.7383177, y: 3.8237646}
+    size: 0.1321764
+    rectangleAspectRatio: 1.7272668
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 3.74, y: 3.1722298}
+    size: 0.07076144
+    rectangleAspectRatio: 3.11
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 4.4432583, y: 4.283044}
+    size: 0.51668864
+    rectangleAspectRatio: 0.19379838
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 5.180242, y: 4.2830443}
+    size: 0.51668835
+    rectangleAspectRatio: 0.21446897
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 11
+    position: {x: 0, y: 0}
+    size: 2.05
+    rectangleAspectRatio: 1.5
+    lineStart: {x: 4.3511353, y: 4.789052}
+    lineEnd: {x: 4.8424573, y: 4.319092}
+    usage: 0
+  - pattern: 11
+    position: {x: 0, y: 0}
+    size: 2.05
+    rectangleAspectRatio: 1.5
+    lineStart: {x: 4.8424573, y: 4.3404536}
+    lineEnd: {x: 5.291055, y: 4.778371}
+    usage: 0
+  - pattern: 7
+    position: {x: 5.7, y: 3.36}
+    size: 0.37783688
+    rectangleAspectRatio: 0.28
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 6.2590127, y: 3.129506}
+    size: 0.13217592
+    rectangleAspectRatio: 3.4234557
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 6.59, y: 3.6635509}
+    size: 0.3991989
+    rectangleAspectRatio: 0.304349
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 6.1628847, y: 2.7236314}
+    size: 0.2603471
+    rectangleAspectRatio: 0.38460958
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0

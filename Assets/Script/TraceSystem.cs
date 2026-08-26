@@ -1,320 +1,460 @@
-using System.Collections.Generic;
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(LineRenderer))]
-public class TraceSystem : MonoBehaviour
+public sealed class TraceSystem : MonoBehaviour
 {
-    [Header("画像の参照")]
-    [SerializeField] private List<SpriteRenderer> targetImages = new List<SpriteRenderer>(); //なぞる画像
+    [Header("Trace Targets")]
+    [SerializeField] private List<SpriteRenderer> targetImages = new();
 
-    [Header("移動設定")]
-    [SerializeField] private List<TraceDestination> destination = new List<TraceDestination>();
+    [Header("Collection Destinations")]
+    [SerializeField] private List<TraceDestination> destination = new();
+    [SerializeField] private float moveSpeed = 5f;
 
-    [Tooltip("移動スピード")]
-    [SerializeField] private float moveSpeed = 5.0f;
-
-    [Header("線の設定")]
-
-    [Tooltip("なぞり線の太さ")]
-    [SerializeField] private float lineWidth = 0.1f;            //線の太さ
-
-    [Tooltip("なぞり線の色")]
+    [Header("Line Settings")]
+    [SerializeField] private float lineWidth = 0.1f;
     [SerializeField] private Color lineColor = new(0.1f, 0.1f, 0.1f, 1f);
+    [SerializeField] private float minDistancePoints = 0.5f;
 
-    [Tooltip("この数値以上なぞらないと線は描かれないヨ")]
-    [SerializeField] private float minDistancePoints = 0.5f;   //これ以上動かさないと戦は描かれない
-
-    private LineRenderer lineRenderer;                          //描画のlineRendererコンポーネント
-    private List<Vector3> points = new List<Vector3>();         //描画された線の頂点座標リスと　
+    private readonly List<Vector3> currentPoints = new();
+    private readonly List<CompletedStroke> completedStrokes = new();
+    private LineRenderer lineRenderer;
     private Camera mainCamera;
+    private Material lineMaterial;
+    private SpriteRenderer activeImage;
+    private float drawingStartedAt;
+    private float lastDrawingSeconds;
+    private bool isTracing;
+    private bool isCollecting;
+    private Coroutine collectionCoroutine;
 
-    private bool isTracing = false;                             //なぞってるか否か
-    private Coroutine moveCoroutine;
+    public event Action<TraceStrokeResult[]> BatchCompleted;
+    public event Action TracingAvailable;
+    public event Action TracingCompleted;
 
-    private HashSet<SpriteRenderer> tracedImages = new HashSet<SpriteRenderer> ();
+    public bool InputEnabled { get; private set; }
+    public int CompletedCount => completedStrokes.Count;
+    public int TargetCount => CountConfiguredTargets();
+    public float CurrentDrawingSeconds =>
+        isTracing ? Mathf.Max(0f, Time.time - drawingStartedAt) : lastDrawingSeconds;
 
-    void Start()
+    private void Awake()
     {
         lineRenderer = GetComponent<LineRenderer>();
         mainCamera = Camera.main;
-
-        //線の幅設定
-        lineRenderer.startWidth = lineWidth;
-        lineRenderer.endWidth   = lineWidth;
-
-        //線の色設定
-        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));       //これをやらないと、インスペクターで決めた色が反映されない
-        lineRenderer.startColor = lineColor;
-        lineRenderer.endColor   = lineColor;
-
+        lineMaterial = new Material(Shader.Find("Sprites/Default"))
+        {
+            name = "Runtime Trace Material",
+        };
+        ConfigureRenderer(lineRenderer);
         lineRenderer.positionCount = 0;
     }
 
-    void Update()
+    private void OnDestroy()
     {
-        //タッチ入力処理
-        if(Input.touchCount > 0)
+        if (lineMaterial != null)
         {
-            Touch touch = Input.GetTouch(0);    //一本目の指のタッチの取得
+            Destroy(lineMaterial);
+        }
+    }
 
-            //タッチ開始したら
+    private void Update()
+    {
+        if (!InputEnabled || isCollecting)
+        {
+            return;
+        }
+
+        if (Input.touchCount > 0)
+        {
+            var touch = Input.GetTouch(0);
             if (touch.phase == TouchPhase.Began)
             {
-                StartTracing(touch.position);   
+                StartTracing(touch.position);
             }
-            else if (touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary)
+            else if ((touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary) && isTracing)
             {
-                if(isTracing)
-                {
-                    Trace(touch.position);
-                }
+                Trace(touch.position);
             }
-            //タッチを中断したら
-            else if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
+            else if ((touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled) && isTracing)
             {
-                if(isTracing)
-                {
-                    EndTracing();
-                }
+                EndTracing(touch.position);
+            }
+            return;
+        }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            StartTracing(Input.mousePosition);
+        }
+        else if (Input.GetMouseButton(0) && isTracing)
+        {
+            Trace(Input.mousePosition);
+        }
+        else if (Input.GetMouseButtonUp(0) && isTracing)
+        {
+            EndTracing(Input.mousePosition);
+        }
+    }
+
+    public void BeginRound()
+    {
+        if (collectionCoroutine != null)
+        {
+            StopCoroutine(collectionCoroutine);
+            collectionCoroutine = null;
+        }
+
+        ClearCurrentLine();
+        ClearCollectedLines();
+        completedStrokes.Clear();
+        activeImage = null;
+        isTracing = false;
+        isCollecting = false;
+        lastDrawingSeconds = 0f;
+
+        for (var index = 0; index < targetImages.Count; index++)
+        {
+            if (targetImages[index] != null)
+            {
+                targetImages[index].enabled = true;
             }
         }
-        //マウス流力処理
-        else
+
+        InputEnabled = true;
+        TracingAvailable?.Invoke();
+    }
+
+    public void SetInputEnabled(bool enabled)
+    {
+        InputEnabled = enabled;
+        if (!enabled && isTracing)
         {
-            if(Input.GetMouseButtonDown(0))
+            CancelCurrentStroke();
+        }
+    }
+
+    public void ClearCollectedLines()
+    {
+        for (var index = 0; index < completedStrokes.Count; index++)
+        {
+            var stroke = completedStrokes[index];
+            if (stroke.Renderer != null)
             {
-                StartTracing(Input.mousePosition);
-            }
-            //ドラック中
-            else if(Input.GetMouseButton(0))
-            {
-                if(isTracing)
-                {
-                    Trace(Input.mousePosition);
-                }
-            }
-            else if(Input.GetMouseButtonUp(0))
-            {
-                if(isTracing)
-                {
-                    EndTracing();
-                }
+                Destroy(stroke.Renderer.gameObject);
+                stroke.Renderer = null;
             }
         }
     }
 
-    //なぞり始めの処理
     private void StartTracing(Vector2 screenPosition)
     {
-        if(moveCoroutine != null)
+        var worldPosition = GetWorldPositionFromScreen(screenPosition);
+        if (!TryGetAvailableImage(worldPosition, out activeImage))
         {
-            StopCoroutine(moveCoroutine);
-            SaveCurrentLine();
-            moveCoroutine = null;
+            return;
         }
 
-        ClearLine();
-        tracedImages.Clear();
+        ClearCurrentLine();
         isTracing = true;
-        Trace(screenPosition);
-    }
-    
-    //なぞり終わりの処理
-    private void EndTracing()
-    {
-        isTracing = false;
-
-        //離したら画面中央に移動
-        if(points.Count > 0)
-        {
-            TraceDestination currentDestination = GetTraceDestinationForImages();
-            moveCoroutine = StartCoroutine(MoveLineToDestination(currentDestination));
-        }
+        drawingStartedAt = Time.time;
+        lastDrawingSeconds = 0f;
+        AddPointIfValid(worldPosition, true);
     }
 
-    //なぞりの処理
     private void Trace(Vector2 screenPosition)
     {
-        Vector3 worldPos = GetWorldPositionFromScreen(screenPosition);
+        AddPointIfValid(GetWorldPositionFromScreen(screenPosition), false);
+    }
 
-        if(!IsOverImage(worldPos,out SpriteRenderer touchedImage))
+    private void EndTracing(Vector2 screenPosition)
+    {
+        AddPointIfValid(GetWorldPositionFromScreen(screenPosition), true);
+        isTracing = false;
+        lastDrawingSeconds = Mathf.Max(Time.time - drawingStartedAt, 0.01f);
+
+        if (currentPoints.Count < 2)
+        {
+            CancelCurrentStroke();
+            return;
+        }
+
+        var targetIndex = targetImages.IndexOf(activeImage);
+        var strokePoints = currentPoints.ToArray();
+        var savedRenderer = CreateSavedLine(strokePoints, completedStrokes.Count + 1);
+        completedStrokes.Add(new CompletedStroke(
+            activeImage,
+            destination[targetIndex],
+            savedRenderer,
+            strokePoints,
+            CalculateAccuracy(activeImage, strokePoints),
+            lastDrawingSeconds));
+
+        activeImage.enabled = false;
+        activeImage = null;
+        ClearCurrentLine();
+
+        InputEnabled = false;
+        TracingCompleted?.Invoke();
+        isCollecting = true;
+        collectionCoroutine = StartCoroutine(MoveLineToDestination(completedStrokes.Count - 1));
+    }
+
+    private void AddPointIfValid(Vector3 worldPosition, bool force)
+    {
+        if (activeImage == null || !IsOverImage(activeImage, worldPosition))
         {
             return;
         }
 
-        //触れた画像を記録
-        tracedImages.Add(touchedImage);
-
-     
-        //指定した距離以上でないと描画されない
-        if(points.Count == 0 || Vector3.Distance(points[points.Count - 1],worldPos) > minDistancePoints)
+        if (!force && currentPoints.Count > 0 &&
+            Vector3.Distance(currentPoints[^1], worldPosition) <= minDistancePoints)
         {
-            points.Add(worldPos);
-
-            lineRenderer.positionCount = points.Count;
-
-            lineRenderer.SetPosition(points.Count - 1, worldPos);
+            return;
         }
+
+        currentPoints.Add(worldPosition);
+        lineRenderer.positionCount = currentPoints.Count;
+        lineRenderer.SetPosition(currentPoints.Count - 1, worldPosition);
     }
 
-    //画像の移動先を取得
-    private TraceDestination GetTraceDestinationForImages()
+    private IEnumerator MoveLineToDestination(int strokeIndex)
     {
-        foreach(var image in tracedImages)
+        var stroke = completedStrokes[strokeIndex];
+        var bounds = new Bounds(stroke.Points[0], Vector3.zero);
+        for (var pointIndex = 1; pointIndex < stroke.Points.Length; pointIndex++)
         {
-            int index = targetImages.IndexOf(image);
-
-            if(index != -1 && index < destination.Count)
-            {
-                return destination[index];
-            }
-        }
-        return null;
-    }
-
-    //中央へ移動させる処理
-    private IEnumerator MoveLineToDestination(TraceDestination targetDestination)
-    {
-        Bounds bounds = new Bounds(points[0],Vector3.zero);
-
-        foreach(Vector3 p in points)
-        {
-            bounds.Encapsulate(p);
+            bounds.Encapsulate(stroke.Points[pointIndex]);
         }
 
-        Vector3 currentCenter = bounds.center;
+        var targetCenter = stroke.Destination.TargetPosition;
+        targetCenter.z = bounds.center.z;
+        var targetOffset = targetCenter - bounds.center;
+        var currentOffset = Vector3.zero;
 
-        Vector3 targetWorldCenter = (destination != null) ? targetDestination.TargetPosition : Vector3.zero;
-        targetWorldCenter.z = currentCenter.z;
-
-        //オブジェクトの中心点から中央までの移動差分の算出
-        Vector3 targetOffset = targetWorldCenter - currentCenter;
-        Vector3 currentOffset = Vector3.zero;
-
-        while(currentOffset != targetOffset)
+        while (currentOffset != targetOffset)
         {
-            Vector3 nextOffset = Vector3.MoveTowards(currentOffset,targetOffset,moveSpeed * Time.deltaTime);
-            Vector3 delta = nextOffset - currentOffset;
-
-            for (int i = 0; i < points.Count; i++)
-            {
-                points[i] += delta;
-                lineRenderer.SetPosition(i, points[i]);
-            }
+            var nextOffset = Vector3.MoveTowards(
+                currentOffset,
+                targetOffset,
+                moveSpeed * Time.deltaTime);
+            var delta = nextOffset - currentOffset;
             currentOffset = nextOffset;
+            for (var pointIndex = 0; pointIndex < stroke.Points.Length; pointIndex++)
+            {
+                stroke.Points[pointIndex] += delta;
+                stroke.Renderer.SetPosition(pointIndex, stroke.Points[pointIndex]);
+            }
             yield return null;
         }
-        SaveCurrentLine();
-        ClearLine();
 
-        HideGuideImage();
-        moveCoroutine = null;
+        isCollecting = false;
+        collectionCoroutine = null;
+        if (completedStrokes.Count < CountConfiguredTargets())
+        {
+            lastDrawingSeconds = 0f;
+            InputEnabled = true;
+            TracingAvailable?.Invoke();
+            yield break;
+        }
+
+        BatchCompleted?.Invoke(CreateBatchResults());
     }
 
-    //なぞり終えた画像を削除
-    private void HideGuideImage()
+    private TraceStrokeResult[] CreateBatchResults()
     {
-        List<SpriteRenderer> imageRemove = new List<SpriteRenderer>(tracedImages);
-
-        foreach(var image in imageRemove)
+        var results = new TraceStrokeResult[completedStrokes.Count];
+        for (var index = 0; index < completedStrokes.Count; index++)
         {
-            if(image != null)
+            var stroke = completedStrokes[index];
+            var points = new Vector2[stroke.Points.Length];
+            for (var pointIndex = 0; pointIndex < stroke.Points.Length; pointIndex++)
             {
-                int index = targetImages.IndexOf(image);
+                points[pointIndex] = stroke.Points[pointIndex];
+            }
+            results[index] = new TraceStrokeResult(points, stroke.Accuracy, stroke.DrawingSeconds);
+        }
+        return results;
+    }
 
-                if(index != -1)
-                {
-                    targetImages[index] = null;
-                }
+    private float CalculateAccuracy(SpriteRenderer image, IReadOnlyList<Vector3> strokePoints)
+    {
+        var points = new Vector2[strokePoints.Count];
+        for (var index = 0; index < strokePoints.Count; index++)
+        {
+            points[index] = strokePoints[index];
+        }
+        return TraceScorer.Calculate(
+            CreateTargetPoints(image), true, points, Mathf.Max(lineWidth, 0.1f));
+    }
 
-                Destroy(image.gameObject);
+    private static List<Vector2> CreateTargetPoints(SpriteRenderer image)
+    {
+        var bounds = image.sprite.bounds;
+        var minimum = bounds.min;
+        var maximum = bounds.max;
+        var localPoints = image.name.IndexOf("Triangle", StringComparison.OrdinalIgnoreCase) >= 0
+            ? new[]
+            {
+                new Vector3(minimum.x, maximum.y),
+                new Vector3(maximum.x, maximum.y),
+                new Vector3((minimum.x + maximum.x) * 0.5f, minimum.y),
+            }
+            : new[]
+            {
+                new Vector3(minimum.x, maximum.y),
+                new Vector3(maximum.x, maximum.y),
+                new Vector3(maximum.x, minimum.y),
+                new Vector3(minimum.x, minimum.y),
+            };
+
+        var result = new List<Vector2>(localPoints.Length);
+        for (var index = 0; index < localPoints.Length; index++)
+        {
+            result.Add(image.transform.TransformPoint(localPoints[index]));
+        }
+        return result;
+    }
+
+    private bool TryGetAvailableImage(Vector3 worldPosition, out SpriteRenderer image)
+    {
+        for (var index = 0; index < targetImages.Count; index++)
+        {
+            var candidate = targetImages[index];
+            if (candidate != null && !IsCompleted(candidate) && IsOverImage(candidate, worldPosition))
+            {
+                image = candidate;
+                return true;
             }
         }
-        tracedImages.Clear();
+
+        image = null;
+        return false;
     }
 
-    //できたものを保存
-    private void SaveCurrentLine()
+    private bool IsCompleted(SpriteRenderer image)
     {
-        if(points.Count == 0)
+        for (var index = 0; index < completedStrokes.Count; index++)
         {
-            return;
+            if (completedStrokes[index].Image == image)
+            {
+                return true;
+            }
         }
-
-        GameObject saveLineObj = new GameObject("SavedLine");
-        saveLineObj.transform.SetParent(this.transform);
-
-        LineRenderer savedLine = saveLineObj.AddComponent<LineRenderer>();
-
-        savedLine.material = lineRenderer.material;
-        savedLine.startWidth = lineRenderer.startWidth;
-        savedLine.endWidth = lineRenderer.endWidth;
-        savedLine.useWorldSpace = lineRenderer.useWorldSpace;
-
-        savedLine.startColor = lineColor;
-        savedLine.endColor = lineColor;
-
-        savedLine.positionCount = points.Count;
-
-        for(int i = 0; i < points.Count;i++)
-        {
-            savedLine.SetPosition(i,points[i]);
-        }
+        return false;
     }
 
-    //座標変換 
-    private Vector3 GetWorldPositionFromScreen(Vector2 screenPosition)
+    private static bool IsOverImage(SpriteRenderer image, Vector3 worldPosition)
     {
-        Vector3 screenPos = screenPosition;
-
-        screenPos.z = -mainCamera.transform.position.z;
-
-        return mainCamera.ScreenToWorldPoint(screenPos);
-    }
-
-    //指定した画像上にあるかどうか
-    private bool IsOverImage(Vector3 worldPos,out SpriteRenderer touchedImage)
-    {
-        touchedImage = null;
-
-        if(targetImages == null || targetImages.Count == 0)
+        if (image == null || image.sprite == null)
         {
             return false;
         }
 
-       foreach(var image in targetImages)
-       {
-            if (image == null || image.sprite == null) continue;
+        var localPosition = image.transform.InverseTransformPoint(worldPosition);
+        var sprite = image.sprite;
+        var rect = sprite.rect;
+        var pixelX = localPosition.x * sprite.pixelsPerUnit + sprite.pivot.x;
+        var pixelY = localPosition.y * sprite.pixelsPerUnit + sprite.pivot.y;
+        if (pixelX < 0f || pixelX >= rect.width || pixelY < 0f || pixelY >= rect.height)
+        {
+            return false;
+        }
 
-            Vector2 localPos = image.transform.InverseTransformPoint(worldPos);
-            Sprite sprite = image.sprite;
-            Rect rect = sprite.rect;
-
-            //ローカル座標をテクスチャ内のピクセル位置に菅さん
-            float pixelX = localPos.x * sprite.pixelsPerUnit + sprite.pivot.x;
-            float pixelY = localPos.y * sprite.pixelsPerUnit + sprite.pivot.y;
-
-            //座標が画像内に収まってるか判定
-            if(pixelX >= 0 && pixelX < rect.width && pixelY >= 0 && pixelY < rect.height)
-            {
-                Texture2D texture = sprite.texture;
-                Color color = texture.GetPixel((int)(rect.x + pixelX),(int)(rect.y + pixelY));
-
-                if(color.a > 0.1f)
-                {
-                    touchedImage = image;
-                    return true;
-                }
-            }
-       }
-       return false;
+        var color = sprite.texture.GetPixel(
+            Mathf.FloorToInt(rect.x + pixelX),
+            Mathf.FloorToInt(rect.y + pixelY));
+        return color.a > 0.1f;
     }
 
-    //今かかかれている線を削除して初期化
-    private void ClearLine()
+    private Vector3 GetWorldPositionFromScreen(Vector2 screenPosition)
     {
-        points.Clear();
-        lineRenderer.positionCount = 0;
+        mainCamera ??= Camera.main;
+        var screenPoint = new Vector3(
+            screenPosition.x, screenPosition.y, -mainCamera.transform.position.z);
+        return mainCamera.ScreenToWorldPoint(screenPoint);
+    }
+
+    private LineRenderer CreateSavedLine(IReadOnlyList<Vector3> points, int number)
+    {
+        var lineObject = new GameObject($"Collected Trace {number}");
+        lineObject.transform.SetParent(transform);
+        var savedRenderer = lineObject.AddComponent<LineRenderer>();
+        ConfigureRenderer(savedRenderer);
+        savedRenderer.positionCount = points.Count;
+        for (var index = 0; index < points.Count; index++)
+        {
+            savedRenderer.SetPosition(index, points[index]);
+        }
+        return savedRenderer;
+    }
+
+    private void ConfigureRenderer(LineRenderer renderer)
+    {
+        renderer.useWorldSpace = true;
+        renderer.sharedMaterial = lineMaterial;
+        renderer.startWidth = lineWidth;
+        renderer.endWidth = lineWidth;
+        renderer.startColor = lineColor;
+        renderer.endColor = lineColor;
+    }
+
+    private int CountConfiguredTargets()
+    {
+        var count = 0;
+        var maximum = Mathf.Min(targetImages.Count, destination.Count);
+        for (var index = 0; index < maximum; index++)
+        {
+            if (targetImages[index] != null && destination[index] != null)
+            {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private void CancelCurrentStroke()
+    {
+        isTracing = false;
+        activeImage = null;
+        lastDrawingSeconds = 0f;
+        ClearCurrentLine();
+    }
+
+    private void ClearCurrentLine()
+    {
+        currentPoints.Clear();
+        if (lineRenderer != null)
+        {
+            lineRenderer.positionCount = 0;
+        }
+    }
+
+    private sealed class CompletedStroke
+    {
+        public CompletedStroke(
+            SpriteRenderer image,
+            TraceDestination targetDestination,
+            LineRenderer renderer,
+            Vector3[] points,
+            float accuracy,
+            float drawingSeconds)
+        {
+            Image = image;
+            Destination = targetDestination;
+            Renderer = renderer;
+            Points = points;
+            Accuracy = accuracy;
+            DrawingSeconds = drawingSeconds;
+        }
+
+        public SpriteRenderer Image { get; }
+        public TraceDestination Destination { get; }
+        public LineRenderer Renderer { get; set; }
+        public Vector3[] Points { get; }
+        public float Accuracy { get; }
+        public float DrawingSeconds { get; }
     }
 }
