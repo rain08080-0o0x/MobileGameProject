@@ -7,4 +7,9 @@ public enum TracePattern
     Diamond,
     Hexagon,
     Star,
+    Rectangle,
+    LeftTriangle,
+    RightTriangle,
+    HorizontalHexagon,
+    Line,
 }

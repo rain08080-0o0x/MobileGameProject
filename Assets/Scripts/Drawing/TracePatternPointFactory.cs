@@ -9,17 +9,51 @@ public static class TracePatternPointFactory
         TracePattern pattern,
         int pointCount,
         Vector2 position,
-        float size)
+        float size,
+        float rectangleAspectRatio = 1.5f)
+    {
+        var lineHalfLength = Mathf.Max(0.01f, size);
+        return Create(
+            pattern,
+            pointCount,
+            position,
+            size,
+            rectangleAspectRatio,
+            position + Vector2.left * lineHalfLength,
+            position + Vector2.right * lineHalfLength);
+    }
+
+    public static List<Vector2> Create(
+        TracePattern pattern,
+        int pointCount,
+        Vector2 position,
+        float size,
+        float rectangleAspectRatio,
+        Vector2 lineStart,
+        Vector2 lineEnd)
     {
         pointCount = Mathf.Max(16, pointCount);
         size = Mathf.Max(0.01f, size);
+        rectangleAspectRatio = Mathf.Max(0.1f, rectangleAspectRatio);
+
+        if (pattern == TracePattern.Line)
+        {
+            return new List<Vector2> { lineStart, lineEnd };
+        }
 
         if (pattern == TracePattern.Circle)
         {
             return CreateCircle(pointCount, position, size);
         }
 
-        return SampleVertices(CreateVertices(pattern, position, size), pointCount);
+        return SampleVertices(
+            CreateVertices(pattern, position, size, rectangleAspectRatio),
+            pointCount);
+    }
+
+    public static bool IsClosed(TracePattern pattern)
+    {
+        return pattern != TracePattern.Line;
     }
 
     private static List<Vector2> CreateCircle(int pointCount, Vector2 position, float size)
@@ -33,17 +67,43 @@ public static class TracePatternPointFactory
         return result;
     }
 
-    private static Vector2[] CreateVertices(TracePattern pattern, Vector2 position, float size)
+    private static Vector2[] CreateVertices(
+        TracePattern pattern,
+        Vector2 position,
+        float size,
+        float rectangleAspectRatio)
     {
         return pattern switch
         {
             TracePattern.UprightTriangle => CreateRegularVertices(3, position, size, 90f),
             TracePattern.InvertedTriangle => CreateRegularVertices(3, position, size, -90f),
+            TracePattern.LeftTriangle => CreateRegularVertices(3, position, size, 180f),
+            TracePattern.RightTriangle => CreateRegularVertices(3, position, size, 0f),
             TracePattern.Square => CreateRegularVertices(4, position, size, 45f),
+            TracePattern.Rectangle => CreateRectangleVertices(
+                position,
+                size,
+                rectangleAspectRatio),
             TracePattern.Diamond => CreateRegularVertices(4, position, size, 90f),
             TracePattern.Hexagon => CreateRegularVertices(6, position, size, 90f),
+            TracePattern.HorizontalHexagon => CreateRegularVertices(6, position, size, 0f),
             TracePattern.Star => CreateStarVertices(position, size),
             _ => CreateRegularVertices(3, position, size, 90f),
+        };
+    }
+
+    private static Vector2[] CreateRectangleVertices(
+        Vector2 position,
+        float halfHeight,
+        float aspectRatio)
+    {
+        var halfWidth = halfHeight * aspectRatio;
+        return new[]
+        {
+            position + new Vector2(-halfWidth, halfHeight),
+            position + new Vector2(halfWidth, halfHeight),
+            position + new Vector2(halfWidth, -halfHeight),
+            position + new Vector2(-halfWidth, -halfHeight),
         };
     }
 

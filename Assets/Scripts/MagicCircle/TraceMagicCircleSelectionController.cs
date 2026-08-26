@@ -81,6 +81,11 @@ public sealed class TraceMagicCircleSelectionController : MonoBehaviour
             TracePattern.Diamond => "◇",
             TracePattern.Hexagon => "⬡",
             TracePattern.Star => "☆",
+            TracePattern.Rectangle => "▭",
+            TracePattern.LeftTriangle => "◁",
+            TracePattern.RightTriangle => "▷",
+            TracePattern.HorizontalHexagon => "⬡",
+            TracePattern.Line => "／",
             _ => string.Empty,
         };
     }

@@ -76,7 +76,7 @@ public sealed class TraceMagicCircleRenderer : MonoBehaviour
 
         var renderer = shapeObject.AddComponent<LineRenderer>();
         renderer.useWorldSpace = false;
-        renderer.loop = true;
+        renderer.loop = TracePatternPointFactory.IsClosed(shape.Pattern);
         renderer.widthMultiplier = lineWidth;
         renderer.startColor = lineColor;
         renderer.endColor = lineColor;
@@ -89,7 +89,10 @@ public sealed class TraceMagicCircleRenderer : MonoBehaviour
             shape.Pattern,
             pointCount,
             shape.Position,
-            shape.Size);
+            shape.Size,
+            shape.RectangleAspectRatio,
+            shape.LineStart,
+            shape.LineEnd);
         renderer.positionCount = points.Count;
         for (var pointIndex = 0; pointIndex < points.Count; pointIndex++)
         {

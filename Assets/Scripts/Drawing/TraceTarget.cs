@@ -14,7 +14,7 @@ public sealed class TraceTarget : MonoBehaviour
 
     public IReadOnlyList<Vector2> Points => points;
     public TracePattern Pattern => pattern;
-    public bool IsClosed => true;
+    public bool IsClosed => TracePatternPointFactory.IsClosed(pattern);
     public float ToleranceRadius => toleranceRadius;
 
     private void Awake()
