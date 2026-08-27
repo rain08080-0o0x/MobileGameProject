@@ -25,7 +25,7 @@ public sealed class TraceBattleHud : MonoBehaviour
                 GUILayout.Label("魔法陣を選択してください");
                 break;
             case TraceBattlePhase.PlayerTurn:
-                GUILayout.Label("三角形と四角形をなぞってください");
+                GUILayout.Label("魔法陣の図形をなぞってください");
                 GUILayout.Label(
                     $"完了 {battleController.CurrentPatternIndex} / {battleController.TotalPatternCount}");
                 GUILayout.Label($"描画時間 {battleController.CurrentPatternElapsedSeconds:0.00}秒");

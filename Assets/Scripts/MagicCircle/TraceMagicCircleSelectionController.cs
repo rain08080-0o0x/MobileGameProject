@@ -16,7 +16,7 @@ public sealed class TraceMagicCircleSelectionController : MonoBehaviour
 
     public void SelectMagicCircle(TraceMagicCircleDefinition magicCircle)
     {
-        if (SelectionEnabled && magicCircle != null)
+        if (SelectionEnabled && HasDisplayedShapes(magicCircle))
         {
             MagicCircleSelected?.Invoke(magicCircle);
         }
@@ -44,13 +44,17 @@ public sealed class TraceMagicCircleSelectionController : MonoBehaviour
                 continue;
             }
 
+            var displayedShapeCount = GetDisplayedShapeCount(magicCircle);
+            var wasEnabled = GUI.enabled;
+            GUI.enabled = displayedShapeCount > 0;
             if (GUILayout.Button(
                     $"{GetPatternSymbols(magicCircle)}  {magicCircle.DisplayName}    " +
-                    $"基礎威力 {magicCircle.BasePower}    {magicCircle.DrawCount}個描画",
+                    $"基礎威力 {magicCircle.BasePower}    {displayedShapeCount}図形",
                     GUILayout.Height(64f)))
             {
                 SelectMagicCircle(magicCircle);
             }
+            GUI.enabled = wasEnabled;
         }
 
         GUILayout.EndArea();
@@ -68,6 +72,30 @@ public sealed class TraceMagicCircleSelectionController : MonoBehaviour
             }
         }
         return symbols;
+    }
+
+    private static bool HasDisplayedShapes(TraceMagicCircleDefinition magicCircle)
+    {
+        return GetDisplayedShapeCount(magicCircle) > 0;
+    }
+
+    private static int GetDisplayedShapeCount(TraceMagicCircleDefinition magicCircle)
+    {
+        if (magicCircle == null)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        for (var index = 0; index < magicCircle.Shapes.Count; index++)
+        {
+            var shape = magicCircle.Shapes[index];
+            if (shape != null && shape.IsDisplayed)
+            {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static string GetPatternSymbol(TracePattern pattern)

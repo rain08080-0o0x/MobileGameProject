@@ -1,42 +1,39 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(LineRenderer))]
 public sealed class TraceSystem : MonoBehaviour
 {
-    [Header("Trace Targets")]
-    [SerializeField] private List<SpriteRenderer> targetImages = new();
-
-    [Header("Collection Destinations")]
-    [SerializeField] private List<TraceDestination> destination = new();
-    [SerializeField] private float moveSpeed = 5f;
+    [Header("Trace Target Settings")]
+    [SerializeField, Min(16)] private int targetPointCount = 128;
+    [SerializeField] private Color targetColor = new(0.58f, 0.62f, 0.66f, 0.85f);
 
     [Header("Line Settings")]
     [SerializeField] private float lineWidth = 0.1f;
     [SerializeField] private Color lineColor = new(0.1f, 0.1f, 0.1f, 1f);
-    [SerializeField] private float minDistancePoints = 0.5f;
+    [SerializeField] private float minDistancePoints = 0.045f;
 
     private readonly List<Vector3> currentPoints = new();
+    private readonly List<TraceTargetEntry> targets = new();
     private readonly List<CompletedStroke> completedStrokes = new();
+    private TraceMagicCircleDefinition magicCircle;
     private LineRenderer lineRenderer;
     private Camera mainCamera;
     private Material lineMaterial;
-    private SpriteRenderer activeImage;
+    private TraceTargetEntry activeTarget;
     private float drawingStartedAt;
     private float lastDrawingSeconds;
     private bool isTracing;
-    private bool isCollecting;
-    private Coroutine collectionCoroutine;
 
     public event Action<TraceStrokeResult[]> BatchCompleted;
+    public event Action<TraceStrokeResult> StrokeScored;
     public event Action TracingAvailable;
     public event Action TracingCompleted;
 
     public bool InputEnabled { get; private set; }
     public int CompletedCount => completedStrokes.Count;
-    public int TargetCount => CountConfiguredTargets();
+    public int TargetCount => targets.Count;
     public float CurrentDrawingSeconds =>
         isTracing ? Mathf.Max(0f, Time.time - drawingStartedAt) : lastDrawingSeconds;
 
@@ -48,12 +45,13 @@ public sealed class TraceSystem : MonoBehaviour
         {
             name = "Runtime Trace Material",
         };
-        ConfigureRenderer(lineRenderer);
+        ConfigureRenderer(lineRenderer, lineColor, 1);
         lineRenderer.positionCount = 0;
     }
 
     private void OnDestroy()
     {
+        ClearTargetRenderers();
         if (lineMaterial != null)
         {
             Destroy(lineMaterial);
@@ -62,7 +60,7 @@ public sealed class TraceSystem : MonoBehaviour
 
     private void Update()
     {
-        if (!InputEnabled || isCollecting)
+        if (!InputEnabled)
         {
             return;
         }
@@ -99,28 +97,32 @@ public sealed class TraceSystem : MonoBehaviour
         }
     }
 
+    public void SetMagicCircle(TraceMagicCircleDefinition definition)
+    {
+        SetInputEnabled(false);
+        ClearCollectedLines();
+        completedStrokes.Clear();
+        magicCircle = definition;
+        BuildTargets();
+    }
+
     public void BeginRound()
     {
-        if (collectionCoroutine != null)
+        if (magicCircle == null || targets.Count == 0)
         {
-            StopCoroutine(collectionCoroutine);
-            collectionCoroutine = null;
+            throw new InvalidOperationException("A magic circle with displayed shapes is required.");
         }
 
         ClearCurrentLine();
         ClearCollectedLines();
         completedStrokes.Clear();
-        activeImage = null;
+        activeTarget = null;
         isTracing = false;
-        isCollecting = false;
         lastDrawingSeconds = 0f;
 
-        for (var index = 0; index < targetImages.Count; index++)
+        for (var index = 0; index < targets.Count; index++)
         {
-            if (targetImages[index] != null)
-            {
-                targetImages[index].enabled = true;
-            }
+            targets[index].Renderer.enabled = true;
         }
 
         InputEnabled = true;
@@ -149,10 +151,66 @@ public sealed class TraceSystem : MonoBehaviour
         }
     }
 
+    private void BuildTargets()
+    {
+        ClearTargetRenderers();
+        if (magicCircle == null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < magicCircle.Shapes.Count; index++)
+        {
+            var shape = magicCircle.Shapes[index];
+            if (shape == null || !shape.IsDisplayed)
+            {
+                continue;
+            }
+
+            var points = TracePatternPointFactory.Create(
+                shape.Pattern,
+                targetPointCount,
+                shape.Position,
+                shape.Size,
+                shape.RectangleAspectRatio,
+                shape.LineStart,
+                shape.LineEnd);
+            var targetObject = new GameObject($"Trace Target {targets.Count + 1}");
+            targetObject.transform.SetParent(transform, false);
+            var targetRenderer = targetObject.AddComponent<LineRenderer>();
+            ConfigureRenderer(targetRenderer, targetColor, 0);
+            targetRenderer.loop = TracePatternPointFactory.IsClosed(shape.Pattern);
+            targetRenderer.positionCount = points.Count;
+            for (var pointIndex = 0; pointIndex < points.Count; pointIndex++)
+            {
+                targetRenderer.SetPosition(
+                    pointIndex,
+                    new Vector3(points[pointIndex].x, points[pointIndex].y, 0f));
+            }
+            targetRenderer.enabled = false;
+            targets.Add(new TraceTargetEntry(
+                points,
+                TracePatternPointFactory.IsClosed(shape.Pattern),
+                targetRenderer));
+        }
+    }
+
+    private void ClearTargetRenderers()
+    {
+        for (var index = 0; index < targets.Count; index++)
+        {
+            if (targets[index].Renderer != null)
+            {
+                Destroy(targets[index].Renderer.gameObject);
+            }
+        }
+        targets.Clear();
+    }
+
     private void StartTracing(Vector2 screenPosition)
     {
         var worldPosition = GetWorldPositionFromScreen(screenPosition);
-        if (!TryGetAvailableImage(worldPosition, out activeImage))
+        if (!TryGetAvailableTarget(worldPosition, out activeTarget))
         {
             return;
         }
@@ -161,17 +219,17 @@ public sealed class TraceSystem : MonoBehaviour
         isTracing = true;
         drawingStartedAt = Time.time;
         lastDrawingSeconds = 0f;
-        AddPointIfValid(worldPosition, true);
+        AddPoint(worldPosition, true);
     }
 
     private void Trace(Vector2 screenPosition)
     {
-        AddPointIfValid(GetWorldPositionFromScreen(screenPosition), false);
+        AddPoint(GetWorldPositionFromScreen(screenPosition), false);
     }
 
     private void EndTracing(Vector2 screenPosition)
     {
-        AddPointIfValid(GetWorldPositionFromScreen(screenPosition), true);
+        AddPoint(GetWorldPositionFromScreen(screenPosition), true);
         isTracing = false;
         lastDrawingSeconds = Mathf.Max(Time.time - drawingStartedAt, 0.01f);
 
@@ -181,30 +239,37 @@ public sealed class TraceSystem : MonoBehaviour
             return;
         }
 
-        var targetIndex = targetImages.IndexOf(activeImage);
         var strokePoints = currentPoints.ToArray();
         var savedRenderer = CreateSavedLine(strokePoints, completedStrokes.Count + 1);
-        completedStrokes.Add(new CompletedStroke(
-            activeImage,
-            destination[targetIndex],
+        var completedStroke = new CompletedStroke(
+            activeTarget,
             savedRenderer,
             strokePoints,
-            CalculateAccuracy(activeImage, strokePoints),
-            lastDrawingSeconds));
+            CalculateAccuracy(activeTarget, strokePoints),
+            lastDrawingSeconds);
+        completedStrokes.Add(completedStroke);
 
-        activeImage.enabled = false;
-        activeImage = null;
+        activeTarget.Renderer.enabled = false;
+        activeTarget = null;
         ClearCurrentLine();
-
         InputEnabled = false;
+        StrokeScored?.Invoke(CreateStrokeResult(completedStroke));
         TracingCompleted?.Invoke();
-        isCollecting = true;
-        collectionCoroutine = StartCoroutine(MoveLineToDestination(completedStrokes.Count - 1));
+
+        if (completedStrokes.Count < targets.Count)
+        {
+            lastDrawingSeconds = 0f;
+            InputEnabled = true;
+            TracingAvailable?.Invoke();
+            return;
+        }
+
+        BatchCompleted?.Invoke(CreateBatchResults());
     }
 
-    private void AddPointIfValid(Vector3 worldPosition, bool force)
+    private void AddPoint(Vector3 worldPosition, bool force)
     {
-        if (activeImage == null || !IsOverImage(activeImage, worldPosition))
+        if (activeTarget == null)
         {
             return;
         }
@@ -220,66 +285,45 @@ public sealed class TraceSystem : MonoBehaviour
         lineRenderer.SetPosition(currentPoints.Count - 1, worldPosition);
     }
 
-    private IEnumerator MoveLineToDestination(int strokeIndex)
+    private bool TryGetAvailableTarget(Vector2 worldPosition, out TraceTargetEntry target)
     {
-        var stroke = completedStrokes[strokeIndex];
-        var bounds = new Bounds(stroke.Points[0], Vector3.zero);
-        for (var pointIndex = 1; pointIndex < stroke.Points.Length; pointIndex++)
-        {
-            bounds.Encapsulate(stroke.Points[pointIndex]);
-        }
+        target = null;
+        var hitRadius = Mathf.Max(lineWidth * 1.5f, 0.2f);
+        var nearestDistance = float.PositiveInfinity;
 
-        var targetCenter = stroke.Destination.TargetPosition;
-        targetCenter.z = bounds.center.z;
-        var targetOffset = targetCenter - bounds.center;
-        var currentOffset = Vector3.zero;
-
-        while (currentOffset != targetOffset)
+        for (var index = 0; index < targets.Count; index++)
         {
-            var nextOffset = Vector3.MoveTowards(
-                currentOffset,
-                targetOffset,
-                moveSpeed * Time.deltaTime);
-            var delta = nextOffset - currentOffset;
-            currentOffset = nextOffset;
-            for (var pointIndex = 0; pointIndex < stroke.Points.Length; pointIndex++)
+            var candidate = targets[index];
+            if (IsCompleted(candidate))
             {
-                stroke.Points[pointIndex] += delta;
-                stroke.Renderer.SetPosition(pointIndex, stroke.Points[pointIndex]);
+                continue;
             }
-            yield return null;
-        }
 
-        isCollecting = false;
-        collectionCoroutine = null;
-        if (completedStrokes.Count < CountConfiguredTargets())
-        {
-            lastDrawingSeconds = 0f;
-            InputEnabled = true;
-            TracingAvailable?.Invoke();
-            yield break;
+            var distance = DistanceToPolyline(worldPosition, candidate.Points, candidate.IsClosed);
+            if (distance <= hitRadius && distance < nearestDistance)
+            {
+                target = candidate;
+                nearestDistance = distance;
+            }
         }
-
-        BatchCompleted?.Invoke(CreateBatchResults());
+        return target != null;
     }
 
-    private TraceStrokeResult[] CreateBatchResults()
+    private bool IsCompleted(TraceTargetEntry target)
     {
-        var results = new TraceStrokeResult[completedStrokes.Count];
         for (var index = 0; index < completedStrokes.Count; index++)
         {
-            var stroke = completedStrokes[index];
-            var points = new Vector2[stroke.Points.Length];
-            for (var pointIndex = 0; pointIndex < stroke.Points.Length; pointIndex++)
+            if (completedStrokes[index].Target == target)
             {
-                points[pointIndex] = stroke.Points[pointIndex];
+                return true;
             }
-            results[index] = new TraceStrokeResult(points, stroke.Accuracy, stroke.DrawingSeconds);
         }
-        return results;
+        return false;
     }
 
-    private float CalculateAccuracy(SpriteRenderer image, IReadOnlyList<Vector3> strokePoints)
+    private float CalculateAccuracy(
+        TraceTargetEntry target,
+        IReadOnlyList<Vector3> strokePoints)
     {
         var points = new Vector2[strokePoints.Count];
         for (var index = 0; index < strokePoints.Count; index++)
@@ -287,93 +331,60 @@ public sealed class TraceSystem : MonoBehaviour
             points[index] = strokePoints[index];
         }
         return TraceScorer.Calculate(
-            CreateTargetPoints(image), true, points, Mathf.Max(lineWidth, 0.1f));
+            target.Points,
+            target.IsClosed,
+            points,
+            Mathf.Max(lineWidth, 0.1f));
     }
 
-    private static List<Vector2> CreateTargetPoints(SpriteRenderer image)
+    private static float DistanceToPolyline(
+        Vector2 point,
+        IReadOnlyList<Vector2> line,
+        bool isClosed)
     {
-        var bounds = image.sprite.bounds;
-        var minimum = bounds.min;
-        var maximum = bounds.max;
-        var localPoints = image.name.IndexOf("Triangle", StringComparison.OrdinalIgnoreCase) >= 0
-            ? new[]
-            {
-                new Vector3(minimum.x, maximum.y),
-                new Vector3(maximum.x, maximum.y),
-                new Vector3((minimum.x + maximum.x) * 0.5f, minimum.y),
-            }
-            : new[]
-            {
-                new Vector3(minimum.x, maximum.y),
-                new Vector3(maximum.x, maximum.y),
-                new Vector3(maximum.x, minimum.y),
-                new Vector3(minimum.x, minimum.y),
-            };
-
-        var result = new List<Vector2>(localPoints.Length);
-        for (var index = 0; index < localPoints.Length; index++)
+        var minimum = float.PositiveInfinity;
+        var segmentCount = isClosed ? line.Count : line.Count - 1;
+        for (var index = 0; index < segmentCount; index++)
         {
-            result.Add(image.transform.TransformPoint(localPoints[index]));
+            var start = line[index];
+            var end = line[(index + 1) % line.Count];
+            var segment = end - start;
+            var lengthSquared = segment.sqrMagnitude;
+            var progress = lengthSquared <= Mathf.Epsilon
+                ? 0f
+                : Mathf.Clamp01(Vector2.Dot(point - start, segment) / lengthSquared);
+            minimum = Mathf.Min(minimum, Vector2.Distance(point, start + segment * progress));
         }
-        return result;
+        return minimum;
     }
 
-    private bool TryGetAvailableImage(Vector3 worldPosition, out SpriteRenderer image)
+    private TraceStrokeResult[] CreateBatchResults()
     {
-        for (var index = 0; index < targetImages.Count; index++)
-        {
-            var candidate = targetImages[index];
-            if (candidate != null && !IsCompleted(candidate) && IsOverImage(candidate, worldPosition))
-            {
-                image = candidate;
-                return true;
-            }
-        }
-
-        image = null;
-        return false;
-    }
-
-    private bool IsCompleted(SpriteRenderer image)
-    {
+        var results = new TraceStrokeResult[completedStrokes.Count];
         for (var index = 0; index < completedStrokes.Count; index++)
         {
-            if (completedStrokes[index].Image == image)
-            {
-                return true;
-            }
+            results[index] = CreateStrokeResult(completedStrokes[index]);
         }
-        return false;
+        return results;
     }
 
-    private static bool IsOverImage(SpriteRenderer image, Vector3 worldPosition)
+    private static TraceStrokeResult CreateStrokeResult(CompletedStroke stroke)
     {
-        if (image == null || image.sprite == null)
+        var points = new Vector2[stroke.Points.Length];
+        for (var index = 0; index < stroke.Points.Length; index++)
         {
-            return false;
+            points[index] = stroke.Points[index];
         }
-
-        var localPosition = image.transform.InverseTransformPoint(worldPosition);
-        var sprite = image.sprite;
-        var rect = sprite.rect;
-        var pixelX = localPosition.x * sprite.pixelsPerUnit + sprite.pivot.x;
-        var pixelY = localPosition.y * sprite.pixelsPerUnit + sprite.pivot.y;
-        if (pixelX < 0f || pixelX >= rect.width || pixelY < 0f || pixelY >= rect.height)
-        {
-            return false;
-        }
-
-        var color = sprite.texture.GetPixel(
-            Mathf.FloorToInt(rect.x + pixelX),
-            Mathf.FloorToInt(rect.y + pixelY));
-        return color.a > 0.1f;
+        return new TraceStrokeResult(points, stroke.Accuracy, stroke.DrawingSeconds);
     }
 
     private Vector3 GetWorldPositionFromScreen(Vector2 screenPosition)
     {
         mainCamera ??= Camera.main;
         var screenPoint = new Vector3(
-            screenPosition.x, screenPosition.y, -mainCamera.transform.position.z);
+            screenPosition.x,
+            screenPosition.y,
+            -mainCamera.transform.position.z);
         return mainCamera.ScreenToWorldPoint(screenPoint);
     }
 
@@ -382,7 +393,7 @@ public sealed class TraceSystem : MonoBehaviour
         var lineObject = new GameObject($"Collected Trace {number}");
         lineObject.transform.SetParent(transform);
         var savedRenderer = lineObject.AddComponent<LineRenderer>();
-        ConfigureRenderer(savedRenderer);
+        ConfigureRenderer(savedRenderer, lineColor, 1);
         savedRenderer.positionCount = points.Count;
         for (var index = 0; index < points.Count; index++)
         {
@@ -391,34 +402,23 @@ public sealed class TraceSystem : MonoBehaviour
         return savedRenderer;
     }
 
-    private void ConfigureRenderer(LineRenderer renderer)
+    private void ConfigureRenderer(LineRenderer renderer, Color color, int sortingOrder)
     {
         renderer.useWorldSpace = true;
         renderer.sharedMaterial = lineMaterial;
         renderer.startWidth = lineWidth;
         renderer.endWidth = lineWidth;
-        renderer.startColor = lineColor;
-        renderer.endColor = lineColor;
-    }
-
-    private int CountConfiguredTargets()
-    {
-        var count = 0;
-        var maximum = Mathf.Min(targetImages.Count, destination.Count);
-        for (var index = 0; index < maximum; index++)
-        {
-            if (targetImages[index] != null && destination[index] != null)
-            {
-                count++;
-            }
-        }
-        return count;
+        renderer.startColor = color;
+        renderer.endColor = color;
+        renderer.numCapVertices = 8;
+        renderer.numCornerVertices = 8;
+        renderer.sortingOrder = sortingOrder;
     }
 
     private void CancelCurrentStroke()
     {
         isTracing = false;
-        activeImage = null;
+        activeTarget = null;
         lastDrawingSeconds = 0f;
         ClearCurrentLine();
     }
@@ -432,26 +432,40 @@ public sealed class TraceSystem : MonoBehaviour
         }
     }
 
+    private sealed class TraceTargetEntry
+    {
+        public TraceTargetEntry(
+            IReadOnlyList<Vector2> points,
+            bool isClosed,
+            LineRenderer renderer)
+        {
+            Points = points;
+            IsClosed = isClosed;
+            Renderer = renderer;
+        }
+
+        public IReadOnlyList<Vector2> Points { get; }
+        public bool IsClosed { get; }
+        public LineRenderer Renderer { get; }
+    }
+
     private sealed class CompletedStroke
     {
         public CompletedStroke(
-            SpriteRenderer image,
-            TraceDestination targetDestination,
+            TraceTargetEntry target,
             LineRenderer renderer,
             Vector3[] points,
             float accuracy,
             float drawingSeconds)
         {
-            Image = image;
-            Destination = targetDestination;
+            Target = target;
             Renderer = renderer;
             Points = points;
             Accuracy = accuracy;
             DrawingSeconds = drawingSeconds;
         }
 
-        public SpriteRenderer Image { get; }
-        public TraceDestination Destination { get; }
+        public TraceTargetEntry Target { get; }
         public LineRenderer Renderer { get; set; }
         public Vector3[] Points { get; }
         public float Accuracy { get; }

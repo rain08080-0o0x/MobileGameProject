@@ -28,16 +28,17 @@ public sealed class TraceSceneLoader : MonoBehaviour
 
         var traceSystem = FindFirstObjectByType<TraceSystem>();
         var battleController = FindFirstObjectByType<TraceBattleController>();
+        var selectionController = FindFirstObjectByType<TraceMagicCircleSelectionController>();
         var playerHealth = FindFirstObjectByType<TracePlayerHealth>();
         var enemyHealth = FindFirstObjectByType<TraceEnemyHealth>();
         var battleUI = FindFirstObjectByType<TraceBattleUI>();
         if (traceSystem == null || battleController == null || playerHealth == null ||
-            enemyHealth == null || battleUI == null)
+            enemyHealth == null || battleUI == null || selectionController == null)
         {
             throw new InvalidOperationException("Additive battle scenes are missing required components.");
         }
 
         battleUI.Initialize(playerHealth, enemyHealth, battleController, traceSystem);
-        battleController.Initialize(traceSystem);
+        battleController.Initialize(traceSystem, selectionController);
     }
 }

@@ -188,7 +188,7 @@ SpriteRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 901860843}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 1
@@ -517,16 +517,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fd9d6b6fbb9761f4ebf5731ad6b1d441, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TraceSystem
-  targetImages:
-  - {fileID: 1964274290}
-  - {fileID: 901860844}
-  destination:
-  - {fileID: 890423878}
-  - {fileID: 1346601674}
-  moveSpeed: 5
+  targetPointCount: 128
+  targetColor: {r: 0.58, g: 0.62, b: 0.66, a: 0.85}
   lineWidth: 0.3
   lineColor: {r: 0.8944416, g: 0, b: 1, a: 1}
-  minDistancePoints: 0.5
+  minDistancePoints: 0.045
 --- !u!120 &1529291067
 LineRenderer:
   serializedVersion: 3
@@ -677,7 +672,7 @@ SpriteRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1964274289}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 1

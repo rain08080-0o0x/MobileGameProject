@@ -6,7 +6,6 @@ using UnityEngine;
 [DefaultExecutionOrder(100)]
 public sealed class TraceBattleController : MonoBehaviour
 {
-    private const int AttackBasePower = 100;
     private static readonly Vector3 EnemyPlayerAttackPosition = new(0f, 2.15f, -0.05f);
     private static readonly Vector3 EnemyTurnPosition = new(0f, 0f, -0.05f);
 
@@ -24,6 +23,8 @@ public sealed class TraceBattleController : MonoBehaviour
     private readonly List<TraceShapeAttackResult> shapeResults = new();
     private readonly List<TraceGlyphAttack> storedGlyphs = new();
     private TraceSystem traceSystem;
+    private TraceMagicCircleSelectionController selectionController;
+    private TraceMagicCircleDefinition selectedMagicCircle;
     private bool initialized;
 
     public TraceBattlePhase Phase { get; private set; }
@@ -37,7 +38,9 @@ public sealed class TraceBattleController : MonoBehaviour
     public TraceShapeAttackResult? LastShapeResult =>
         shapeResults.Count > 0 ? shapeResults[^1] : null;
 
-    public void Initialize(TraceSystem inputTraceSystem)
+    public void Initialize(
+        TraceSystem inputTraceSystem,
+        TraceMagicCircleSelectionController inputSelectionController)
     {
         if (initialized)
         {
@@ -45,15 +48,19 @@ public sealed class TraceBattleController : MonoBehaviour
         }
 
         traceSystem = inputTraceSystem;
+        selectionController = inputSelectionController;
         if (traceSystem == null || playerHealth == null || enemyAttackController == null ||
-            enemyHealth == null || enemyView == null || damageSettings == null)
+            enemyHealth == null || enemyView == null || damageSettings == null ||
+            selectionController == null)
         {
             throw new InvalidOperationException("Trace battle references are not configured.");
         }
 
         initialized = true;
         traceSystem.BatchCompleted += OnBatchCompleted;
-        BeginPlayerTurn();
+        traceSystem.StrokeScored += OnStrokeScored;
+        selectionController.MagicCircleSelected += OnMagicCircleSelected;
+        BeginMagicCircleSelection();
     }
 
     private void OnDestroy()
@@ -61,14 +68,37 @@ public sealed class TraceBattleController : MonoBehaviour
         if (traceSystem != null)
         {
             traceSystem.BatchCompleted -= OnBatchCompleted;
+            traceSystem.StrokeScored -= OnStrokeScored;
+        }
+        if (selectionController != null)
+        {
+            selectionController.MagicCircleSelected -= OnMagicCircleSelected;
         }
     }
 
-    private void BeginPlayerTurn()
+    private void BeginMagicCircleSelection()
     {
         ClearStoredGlyphs();
         shapeResults.Clear();
         DamageResult = default;
+        selectedMagicCircle = null;
+        traceSystem.SetInputEnabled(false);
+        Phase = TraceBattlePhase.MagicCircleSelection;
+        enemyView.SetPreparing(false);
+        enemyView.SetVisible(false);
+        selectionController.SetSelectionEnabled(true);
+    }
+
+    private void OnMagicCircleSelected(TraceMagicCircleDefinition magicCircle)
+    {
+        selectedMagicCircle = magicCircle;
+        selectionController.SetSelectionEnabled(false);
+        traceSystem.SetMagicCircle(magicCircle);
+        BeginPlayerTurn();
+    }
+
+    private void BeginPlayerTurn()
+    {
         Phase = TraceBattlePhase.PlayerTurn;
         enemyView.SetPreparing(false);
         enemyView.SetVisible(false);
@@ -85,10 +115,6 @@ public sealed class TraceBattleController : MonoBehaviour
         for (var index = 0; index < strokeResults.Length; index++)
         {
             var strokeResult = strokeResults[index];
-            shapeResults.Add(new TraceShapeAttackResult(
-                strokeResult.Accuracy,
-                strokeResult.DrawingSeconds));
-
             var glyphObject = new GameObject($"Stored Trace {index + 1}");
             glyphObject.transform.SetParent(transform, false);
             var glyph = glyphObject.AddComponent<TraceGlyphAttack>();
@@ -97,6 +123,18 @@ public sealed class TraceBattleController : MonoBehaviour
         }
 
         EndPlayerTurn();
+    }
+
+    private void OnStrokeScored(TraceStrokeResult strokeResult)
+    {
+        if (Phase != TraceBattlePhase.PlayerTurn)
+        {
+            return;
+        }
+
+        shapeResults.Add(new TraceShapeAttackResult(
+            strokeResult.Accuracy,
+            strokeResult.DrawingSeconds));
     }
 
     private void EndPlayerTurn()
@@ -111,7 +149,7 @@ public sealed class TraceBattleController : MonoBehaviour
         }
 
         DamageResult = TraceDamageCalculator.CalculateDamage(
-            AttackBasePower,
+            selectedMagicCircle,
             damageSettings,
             accuracies,
             durations);
@@ -169,7 +207,7 @@ public sealed class TraceBattleController : MonoBehaviour
         }
         else
         {
-            BeginPlayerTurn();
+            BeginMagicCircleSelection();
         }
     }
 
