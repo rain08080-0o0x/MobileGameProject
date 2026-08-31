@@ -19,4 +19,22 @@ MonoBehaviour:
   - pattern: 1
     position: {x: 0, y: 0}
     size: 2.05
+    rectangleAspectRatio: 1.5
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    polylinePoints:
+    - {x: -1, y: 0}
+    - {x: 0, y: 1}
+    - {x: 1, y: 0}
+    usage: 0
+  - pattern: 12
+    position: {x: 0, y: 0}
+    size: 2.05
+    rectangleAspectRatio: 1.5
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    polylinePoints:
+    - {x: -1, y: 0}
+    - {x: 0, y: 1}
+    - {x: 1, y: 0}
     usage: 0

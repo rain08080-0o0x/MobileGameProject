@@ -92,7 +92,8 @@ public sealed class TraceMagicCircleRenderer : MonoBehaviour
             shape.Size,
             shape.RectangleAspectRatio,
             shape.LineStart,
-            shape.LineEnd);
+            shape.LineEnd,
+            shape.PolylinePoints);
         renderer.positionCount = points.Count;
         for (var pointIndex = 0; pointIndex < points.Count; pointIndex++)
         {

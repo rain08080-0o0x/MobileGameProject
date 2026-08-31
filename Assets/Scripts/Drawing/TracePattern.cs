@@ -12,4 +12,5 @@ public enum TracePattern
     RightTriangle,
     HorizontalHexagon,
     Line,
+    Polyline,
 }

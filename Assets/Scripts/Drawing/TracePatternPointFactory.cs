@@ -20,7 +20,8 @@ public static class TracePatternPointFactory
             size,
             rectangleAspectRatio,
             position + Vector2.left * lineHalfLength,
-            position + Vector2.right * lineHalfLength);
+            position + Vector2.right * lineHalfLength,
+            null);
     }
 
     public static List<Vector2> Create(
@@ -32,6 +33,27 @@ public static class TracePatternPointFactory
         Vector2 lineStart,
         Vector2 lineEnd)
     {
+        return Create(
+            pattern,
+            pointCount,
+            position,
+            size,
+            rectangleAspectRatio,
+            lineStart,
+            lineEnd,
+            null);
+    }
+
+    public static List<Vector2> Create(
+        TracePattern pattern,
+        int pointCount,
+        Vector2 position,
+        float size,
+        float rectangleAspectRatio,
+        Vector2 lineStart,
+        Vector2 lineEnd,
+        IReadOnlyList<Vector2> polylinePoints)
+    {
         pointCount = Mathf.Max(16, pointCount);
         size = Mathf.Max(0.01f, size);
         rectangleAspectRatio = Mathf.Max(0.1f, rectangleAspectRatio);
@@ -39,6 +61,18 @@ public static class TracePatternPointFactory
         if (pattern == TracePattern.Line)
         {
             return new List<Vector2> { lineStart, lineEnd };
+        }
+
+        if (pattern == TracePattern.Polyline)
+        {
+            return polylinePoints != null && polylinePoints.Count >= 2
+                ? new List<Vector2>(polylinePoints)
+                : new List<Vector2>
+                {
+                    position + new Vector2(-size, 0f),
+                    position + new Vector2(0f, size),
+                    position + new Vector2(size, 0f),
+                };
         }
 
         if (pattern == TracePattern.Circle)
@@ -53,7 +87,7 @@ public static class TracePatternPointFactory
 
     public static bool IsClosed(TracePattern pattern)
     {
-        return pattern != TracePattern.Line;
+        return pattern != TracePattern.Line && pattern != TracePattern.Polyline;
     }
 
     private static List<Vector2> CreateCircle(int pointCount, Vector2 position, float size)

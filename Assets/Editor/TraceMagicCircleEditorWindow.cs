@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -24,6 +25,7 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
         TracePattern.HorizontalHexagon,
         TracePattern.Star,
         TracePattern.Line,
+        TracePattern.Polyline,
     };
 
     private enum PreviewDragMode
@@ -34,6 +36,7 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
         RectangleAspectRatio,
         LineStart,
         LineEnd,
+        PolylinePoint,
     }
 
     private TraceMagicCircleDefinition definition;
@@ -49,6 +52,10 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
     private Vector2 dragInitialPosition;
     private Vector2 dragInitialLineStart;
     private Vector2 dragInitialLineEnd;
+    private readonly List<Vector2> dragInitialPolylinePoints = new();
+    private Vector2 dragInitialPolylineCenter;
+    private float dragInitialPolylineHandleDistance;
+    private int activePolylinePointIndex = -1;
     private float dragInitialSize;
 
     [MenuItem("Tools/魔法陣エディタ")]
@@ -188,7 +195,7 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
         ProcessPreviewInput(previewRect);
 
         EditorGUILayout.HelpBox(
-            "輪郭クリック: 選択 / 黄: 移動 / 緑: 拡縮 / 青: 長方形比率 / 桃: 直線端点\n" +
+            "輪郭クリック: 選択 / 黄: 移動 / 緑: 拡縮 / 青: 長方形比率 / 桃: 直線端点・折れ線頂点\n" +
             "水色線: ゲーム中に表示 / 灰色線: 保持のみ / 黄色線: 選択中",
             MessageType.None);
         EditorGUILayout.EndVertical();
@@ -244,6 +251,10 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
                 selectedShape.FindPropertyRelative("lineEnd"),
                 new GUIContent("終点"));
         }
+        else if (selectedPattern == TracePattern.Polyline)
+        {
+            DrawPolylineInspector(selectedShape.FindPropertyRelative("polylinePoints"));
+        }
         else
         {
             EditorGUILayout.PropertyField(
@@ -273,6 +284,57 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
             DeleteSelectedShape();
         }
         EditorGUILayout.EndVertical();
+    }
+
+    private void DrawPolylineInspector(SerializedProperty pointsProperty)
+    {
+        EditorGUILayout.LabelField("頂点", EditorStyles.boldLabel);
+        var removeIndex = -1;
+        for (var index = 0; index < pointsProperty.arraySize; index++)
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PropertyField(
+                pointsProperty.GetArrayElementAtIndex(index),
+                new GUIContent($"頂点 {index + 1}"));
+            using (new EditorGUI.DisabledScope(pointsProperty.arraySize <= 2))
+            {
+                if (GUILayout.Button("削除", GUILayout.Width(48f)))
+                {
+                    removeIndex = index;
+                }
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
+        if (removeIndex >= 0)
+        {
+            Undo.RecordObject(definition, "折れ線の頂点を削除");
+            pointsProperty.DeleteArrayElementAtIndex(removeIndex);
+        }
+
+        if (GUILayout.Button("頂点を追加"))
+        {
+            Undo.RecordObject(definition, "折れ線に頂点を追加");
+            if (pointsProperty.arraySize < 2)
+            {
+                SetDefaultPolylinePoints(pointsProperty);
+            }
+            else
+            {
+                var lastIndex = pointsProperty.arraySize - 1;
+                var lastPoint = pointsProperty.GetArrayElementAtIndex(lastIndex).vector2Value;
+                var previousPoint = pointsProperty.GetArrayElementAtIndex(lastIndex - 1).vector2Value;
+                var direction = lastPoint - previousPoint;
+                if (direction.sqrMagnitude <= Mathf.Epsilon)
+                {
+                    direction = Vector2.right;
+                }
+
+                pointsProperty.InsertArrayElementAtIndex(pointsProperty.arraySize);
+                pointsProperty.GetArrayElementAtIndex(pointsProperty.arraySize - 1).vector2Value =
+                    lastPoint + direction;
+            }
+        }
     }
 
     private void DrawGrid(Rect rect)
@@ -308,7 +370,7 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
         Handles.DrawAAPolyLine(width, previewPoints);
     }
 
-    private static System.Collections.Generic.List<Vector2> CreateShapePoints(
+    private static List<Vector2> CreateShapePoints(
         TraceMagicCircleShape shape)
     {
         return TracePatternPointFactory.Create(
@@ -318,7 +380,8 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
             shape.Size,
             shape.RectangleAspectRatio,
             shape.LineStart,
-            shape.LineEnd);
+            shape.LineEnd,
+            shape.PolylinePoints);
     }
 
     private static Vector2 WorldToPreview(Rect rect, Vector2 point)
@@ -356,6 +419,28 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
             DrawHandle(rect, center, new Color(1f, 0.78f, 0.25f));
             DrawHandle(rect, shape.LineStart, new Color(1f, 0.35f, 0.65f));
             DrawHandle(rect, shape.LineEnd, new Color(1f, 0.35f, 0.65f));
+            return;
+        }
+
+        if (shape.Pattern == TracePattern.Polyline)
+        {
+            var points = shape.PolylinePoints;
+            if (points == null || points.Count < 2)
+            {
+                return;
+            }
+
+            var center = GetPolylineCenter(points);
+            var radius = GetPolylineRadius(points, center);
+            DrawHandle(rect, center, new Color(1f, 0.78f, 0.25f));
+            DrawHandle(
+                rect,
+                center + Vector2.right * (radius + 0.35f),
+                new Color(0.3f, 0.95f, 0.45f));
+            for (var index = 0; index < points.Count; index++)
+            {
+                DrawHandle(rect, points[index], new Color(1f, 0.35f, 0.65f));
+            }
             return;
         }
 
@@ -432,6 +517,7 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
         else if (currentEvent.rawType == EventType.MouseUp)
         {
             previewDragMode = PreviewDragMode.None;
+            activePolylinePointIndex = -1;
             GUIUtility.hotControl = 0;
             currentEvent.Use();
         }
@@ -465,6 +551,40 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
             }
 
             var center = (shape.LineStart + shape.LineEnd) * 0.5f;
+            if (IsNearHandle(rect, mousePosition, center))
+            {
+                dragMode = PreviewDragMode.Move;
+                return true;
+            }
+            return false;
+        }
+
+        if (shape.Pattern == TracePattern.Polyline)
+        {
+            var points = shape.PolylinePoints;
+            if (points == null || points.Count < 2)
+            {
+                return false;
+            }
+
+            for (var index = 0; index < points.Count; index++)
+            {
+                if (IsNearHandle(rect, mousePosition, points[index]))
+                {
+                    activePolylinePointIndex = index;
+                    dragMode = PreviewDragMode.PolylinePoint;
+                    return true;
+                }
+            }
+
+            var center = GetPolylineCenter(points);
+            var radius = GetPolylineRadius(points, center);
+            var polylineScaleHandle = center + Vector2.right * (radius + 0.35f);
+            if (IsNearHandle(rect, mousePosition, polylineScaleHandle))
+            {
+                dragMode = PreviewDragMode.Scale;
+                return true;
+            }
             if (IsNearHandle(rect, mousePosition, center))
             {
                 dragMode = PreviewDragMode.Move;
@@ -522,6 +642,16 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
         dragInitialSize = selectedShape.FindPropertyRelative("size").floatValue;
         dragInitialLineStart = selectedShape.FindPropertyRelative("lineStart").vector2Value;
         dragInitialLineEnd = selectedShape.FindPropertyRelative("lineEnd").vector2Value;
+        dragInitialPolylinePoints.Clear();
+        var polylinePoints = selectedShape.FindPropertyRelative("polylinePoints");
+        for (var index = 0; index < polylinePoints.arraySize; index++)
+        {
+            dragInitialPolylinePoints.Add(polylinePoints.GetArrayElementAtIndex(index).vector2Value);
+        }
+        dragInitialPolylineCenter = GetPolylineCenter(dragInitialPolylinePoints);
+        dragInitialPolylineHandleDistance = Mathf.Max(
+            0.01f,
+            Vector2.Distance(mouseWorldPosition, dragInitialPolylineCenter));
         GUIUtility.hotControl = controlId;
         GUIUtility.keyboardControl = 0;
     }
@@ -536,17 +666,25 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
         serializedDefinition.Update();
         var selectedShape = shapesProperty.GetArrayElementAtIndex(selectedShapeIndex);
         var delta = mouseWorldPosition - dragStartWorld;
+        var pattern = (TracePattern)selectedShape.FindPropertyRelative("pattern").enumValueIndex;
 
         switch (previewDragMode)
         {
             case PreviewDragMode.Move:
-                if ((TracePattern)selectedShape.FindPropertyRelative("pattern").enumValueIndex ==
-                    TracePattern.Line)
+                if (pattern == TracePattern.Line)
                 {
                     selectedShape.FindPropertyRelative("lineStart").vector2Value =
                         dragInitialLineStart + delta;
                     selectedShape.FindPropertyRelative("lineEnd").vector2Value =
                         dragInitialLineEnd + delta;
+                }
+                else if (pattern == TracePattern.Polyline)
+                {
+                    SetPolylinePoints(
+                        selectedShape.FindPropertyRelative("polylinePoints"),
+                        dragInitialPolylinePoints,
+                        delta,
+                        1f);
                 }
                 else
                 {
@@ -555,9 +693,19 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
                 }
                 break;
             case PreviewDragMode.Scale:
-                var pattern = (TracePattern)selectedShape
-                    .FindPropertyRelative("pattern")
-                    .enumValueIndex;
+                if (pattern == TracePattern.Polyline)
+                {
+                    var scale = Mathf.Max(
+                        0.01f,
+                        Vector2.Distance(mouseWorldPosition, dragInitialPolylineCenter) /
+                        dragInitialPolylineHandleDistance);
+                    SetPolylinePoints(
+                        selectedShape.FindPropertyRelative("polylinePoints"),
+                        dragInitialPolylinePoints,
+                        Vector2.zero,
+                        scale);
+                    break;
+                }
                 var size = pattern == TracePattern.Rectangle
                     ? Mathf.Abs(mouseWorldPosition.y - dragInitialPosition.y)
                     : Vector2.Distance(mouseWorldPosition, dragInitialPosition);
@@ -573,6 +721,15 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
                 break;
             case PreviewDragMode.LineEnd:
                 selectedShape.FindPropertyRelative("lineEnd").vector2Value = mouseWorldPosition;
+                break;
+            case PreviewDragMode.PolylinePoint:
+                var points = selectedShape.FindPropertyRelative("polylinePoints");
+                if (activePolylinePointIndex >= 0 &&
+                    activePolylinePointIndex < points.arraySize)
+                {
+                    points.GetArrayElementAtIndex(activePolylinePointIndex).vector2Value =
+                        mouseWorldPosition;
+                }
                 break;
         }
 
@@ -633,6 +790,7 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
         shape.FindPropertyRelative("rectangleAspectRatio").floatValue = 1.5f;
         shape.FindPropertyRelative("lineStart").vector2Value = new Vector2(-1f, 0f);
         shape.FindPropertyRelative("lineEnd").vector2Value = new Vector2(1f, 0f);
+        SetDefaultPolylinePoints(shape.FindPropertyRelative("polylinePoints"));
         shape.FindPropertyRelative("usage").enumValueIndex = (int)TraceMagicCircleShapeUsage.Display;
         selectedShapeIndex = newIndex;
         serializedDefinition.ApplyModifiedProperties();
@@ -658,6 +816,7 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
         definition = selectedDefinition;
         serializedDefinition = null;
         selectedShapeIndex = -1;
+        activePolylinePointIndex = -1;
         EnsureSerializedObject();
     }
 
@@ -721,7 +880,56 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
             TracePattern.RightTriangle => "▷ 右向き三角形",
             TracePattern.HorizontalHexagon => "⬡ 横六角形",
             TracePattern.Line => "／ 直線",
+            TracePattern.Polyline => "⌁ 折れ線",
             _ => pattern.ToString(),
         };
+    }
+
+    private static Vector2 GetPolylineCenter(IReadOnlyList<Vector2> points)
+    {
+        if (points == null || points.Count == 0)
+        {
+            return Vector2.zero;
+        }
+
+        var center = Vector2.zero;
+        for (var index = 0; index < points.Count; index++)
+        {
+            center += points[index];
+        }
+        return center / points.Count;
+    }
+
+    private static float GetPolylineRadius(IReadOnlyList<Vector2> points, Vector2 center)
+    {
+        var radius = 0f;
+        for (var index = 0; index < points.Count; index++)
+        {
+            radius = Mathf.Max(radius, Vector2.Distance(center, points[index]));
+        }
+        return radius;
+    }
+
+    private static void SetPolylinePoints(
+        SerializedProperty pointsProperty,
+        IReadOnlyList<Vector2> initialPoints,
+        Vector2 offset,
+        float scale)
+    {
+        var center = GetPolylineCenter(initialPoints);
+        pointsProperty.arraySize = initialPoints.Count;
+        for (var index = 0; index < initialPoints.Count; index++)
+        {
+            pointsProperty.GetArrayElementAtIndex(index).vector2Value =
+                center + (initialPoints[index] - center) * scale + offset;
+        }
+    }
+
+    private static void SetDefaultPolylinePoints(SerializedProperty pointsProperty)
+    {
+        pointsProperty.arraySize = 3;
+        pointsProperty.GetArrayElementAtIndex(0).vector2Value = new Vector2(-1f, 0f);
+        pointsProperty.GetArrayElementAtIndex(1).vector2Value = new Vector2(0f, 1f);
+        pointsProperty.GetArrayElementAtIndex(2).vector2Value = new Vector2(1f, 0f);
     }
 }

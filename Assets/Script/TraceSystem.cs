@@ -5,6 +5,9 @@ using UnityEngine;
 [RequireComponent(typeof(LineRenderer))]
 public sealed class TraceSystem : MonoBehaviour
 {
+    private static readonly Color ActiveTargetColor = new(0.18f, 0.89f, 0.9f, 1f);
+    private static readonly Color InactiveTargetColor = new(0.36f, 0.39f, 0.42f, 0.65f);
+
     [Header("Trace Target Settings")]
     [SerializeField, Min(16)] private int targetPointCount = 128;
     [SerializeField] private Color targetColor = new(0.58f, 0.62f, 0.66f, 0.85f);
@@ -124,6 +127,7 @@ public sealed class TraceSystem : MonoBehaviour
         {
             targets[index].Renderer.enabled = true;
         }
+        RefreshTargetVisuals();
 
         InputEnabled = true;
         TracingAvailable?.Invoke();
@@ -174,7 +178,8 @@ public sealed class TraceSystem : MonoBehaviour
                 shape.Size,
                 shape.RectangleAspectRatio,
                 shape.LineStart,
-                shape.LineEnd);
+                shape.LineEnd,
+                shape.PolylinePoints);
             var targetObject = new GameObject($"Trace Target {targets.Count + 1}");
             targetObject.transform.SetParent(transform, false);
             var targetRenderer = targetObject.AddComponent<LineRenderer>();
@@ -249,8 +254,8 @@ public sealed class TraceSystem : MonoBehaviour
             lastDrawingSeconds);
         completedStrokes.Add(completedStroke);
 
-        activeTarget.Renderer.enabled = false;
         activeTarget = null;
+        RefreshTargetVisuals();
         ClearCurrentLine();
         InputEnabled = false;
         StrokeScored?.Invoke(CreateStrokeResult(completedStroke));
@@ -287,26 +292,42 @@ public sealed class TraceSystem : MonoBehaviour
 
     private bool TryGetAvailableTarget(Vector2 worldPosition, out TraceTargetEntry target)
     {
-        target = null;
-        var hitRadius = Mathf.Max(lineWidth * 1.5f, 0.2f);
-        var nearestDistance = float.PositiveInfinity;
+        target = GetCurrentTarget();
+        if (target == null)
+        {
+            return false;
+        }
 
+        var hitRadius = Mathf.Max(lineWidth * 1.5f, 0.2f);
+        var distance = DistanceToPolyline(worldPosition, target.Points, target.IsClosed);
+        return distance <= hitRadius;
+    }
+
+    private TraceTargetEntry GetCurrentTarget()
+    {
         for (var index = 0; index < targets.Count; index++)
         {
-            var candidate = targets[index];
-            if (IsCompleted(candidate))
+            if (!IsCompleted(targets[index]))
             {
-                continue;
-            }
-
-            var distance = DistanceToPolyline(worldPosition, candidate.Points, candidate.IsClosed);
-            if (distance <= hitRadius && distance < nearestDistance)
-            {
-                target = candidate;
-                nearestDistance = distance;
+                return targets[index];
             }
         }
-        return target != null;
+        return null;
+    }
+
+    private void RefreshTargetVisuals()
+    {
+        var currentTarget = GetCurrentTarget();
+        for (var index = 0; index < targets.Count; index++)
+        {
+            var renderer = targets[index].Renderer;
+            renderer.enabled = true;
+            var color = targets[index] == currentTarget
+                ? ActiveTargetColor
+                : InactiveTargetColor;
+            renderer.startColor = color;
+            renderer.endColor = color;
+        }
     }
 
     private bool IsCompleted(TraceTargetEntry target)
