@@ -2,112 +2,157 @@ using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
 
+[System.Serializable]
+public struct TraceImageSetting
+{
+    [Tooltip("なぞり対象の画像")]
+    public SpriteRenderer targetImage;
+
+    [Tooltip("チェックで画面中心へ移動外すと指定した場所に移動")]
+    public bool moveToCenter;
+
+    [Tooltip("移動先設定")]
+    public TraceDestination destination;
+}
+
+// テクスチャのアルファ判定データを高速参照するためのキャッシュ構造
+public class AlphaCache
+{
+    public int width;
+    public int height;
+    public Rect rect;
+    public bool[] alphaMask; // 透明度閾値（0.1f）を超えているかどうかのフラグ配列
+
+    public AlphaCache(Sprite sprite, float threshold = 0.1f)
+    {
+        Texture2D texture = sprite.texture;
+        rect = sprite.rect;
+        width = (int)rect.width;
+        height = (int)rect.height;
+        alphaMask = new bool[width * height];
+
+        // テクスチャから一度だけ全ピクセルを取得してキャッシュ
+        Color[] pixels = texture.GetPixels((int)rect.x, (int)rect.y, width, height);
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            alphaMask[i] = pixels[i].a > threshold;
+        }
+    }
+
+    public bool IsOpaque(int x, int y)
+    {
+        if (x < 0 || x >= width || y < 0 || y >= height) return false;
+        return alphaMask[y * width + x];
+    }
+}
+
 [RequireComponent(typeof(LineRenderer))]
 public class TraceSystem : MonoBehaviour
 {
-    [Header("画像の参照")]
-    [SerializeField] private List<SpriteRenderer> targetImages = new List<SpriteRenderer>(); //なぞる画像
-
-    [Header("移動設定")]
-    [SerializeField] private List<TraceDestination> destination = new List<TraceDestination>();
+    [Header("画像個別設定")]
+    [SerializeField] private List<TraceImageSetting> imageSettings = new List<TraceImageSetting>();
 
     [Tooltip("移動スピード")]
     [SerializeField] private float moveSpeed = 5.0f;
 
     [Header("線の設定")]
-
-    [Tooltip("なぞり線の太さ")]
-    [SerializeField] private float lineWidth = 0.1f;            //線の太さ
-
-    [Tooltip("なぞり線の色")]
+    [SerializeField] private Material lineMaterial;
+    [SerializeField] private float lineWidth = 0.1f;
     [SerializeField] private Color lineColor = new(0.1f, 0.1f, 0.1f, 1f);
+    [SerializeField] private float minDistancePoints = 0.5f;
 
-    [Tooltip("この数値以上なぞらないと線は描かれないヨ")]
-    [SerializeField] private float minDistancePoints = 0.5f;   //これ以上動かさないと戦は描かれない
-
-    private LineRenderer lineRenderer;                          //描画のlineRendererコンポーネント
-    private List<Vector3> points = new List<Vector3>();         //描画された線の頂点座標リスと　
+    private LineRenderer lineRenderer;
+    private readonly List<Vector3> points = new List<Vector3>(128);
     private Camera mainCamera;
 
-    private bool isTracing = false;                             //なぞってるか否か
+    private bool isTracing = false;
     private Coroutine moveCoroutine;
 
-    private HashSet<SpriteRenderer> tracedImages = new HashSet<SpriteRenderer> ();
+    private readonly HashSet<SpriteRenderer> tracedImages = new HashSet<SpriteRenderer>();
+
+    // 画像ごとのアルファデータとインデックスのキャッシュ構造
+    private readonly Dictionary<SpriteRenderer, AlphaCache> alphaCacheMap = new Dictionary<SpriteRenderer, AlphaCache>();
+    private readonly Dictionary<SpriteRenderer, int> settingIndexMap = new Dictionary<SpriteRenderer, int>();
 
     void Start()
     {
         lineRenderer = GetComponent<LineRenderer>();
         mainCamera = Camera.main;
 
-        //線の幅設定
         lineRenderer.startWidth = lineWidth;
-        lineRenderer.endWidth   = lineWidth;
+        lineRenderer.endWidth = lineWidth;
 
-        //線の色設定
-        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));       //これをやらないと、インスペクターで決めた色が反映されない
+        if (lineMaterial != null)
+        {
+            lineRenderer.sharedMaterial = lineMaterial;
+        }
+
         lineRenderer.startColor = lineColor;
-        lineRenderer.endColor   = lineColor;
-
+        lineRenderer.endColor = lineColor;
         lineRenderer.positionCount = 0;
+
+        // ゲーム開始時にアルファデータを事前読み込み（これ以降GetPixelは不使用）
+        BuildAlphaCache();
+    }
+
+    private void BuildAlphaCache()
+    {
+        alphaCacheMap.Clear();
+        settingIndexMap.Clear();
+
+        for (int i = 0; i < imageSettings.Count; i++)
+        {
+            var setting = imageSettings[i];
+            if (setting.targetImage != null && setting.targetImage.sprite != null)
+            {
+                // アルファ配列を作成
+                alphaCacheMap[setting.targetImage] = new AlphaCache(setting.targetImage.sprite, 0.1f);
+                settingIndexMap[setting.targetImage] = i;
+            }
+        }
     }
 
     void Update()
     {
-        //タッチ入力処理
-        if(Input.touchCount > 0)
+        if (Input.touchCount > 0)
         {
-            Touch touch = Input.GetTouch(0);    //一本目の指のタッチの取得
+            Touch touch = Input.GetTouch(0);
 
-            //タッチ開始したら
-            if (touch.phase == TouchPhase.Began)
+            switch (touch.phase)
             {
-                StartTracing(touch.position);   
-            }
-            else if (touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary)
-            {
-                if(isTracing)
-                {
-                    Trace(touch.position);
-                }
-            }
-            //タッチを中断したら
-            else if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
-            {
-                if(isTracing)
-                {
-                    EndTracing();
-                }
+                case TouchPhase.Began:
+                    StartTracing(touch.position);
+                    break;
+                case TouchPhase.Moved:
+                case TouchPhase.Stationary:
+                    if (isTracing) Trace(touch.position);
+                    break;
+                case TouchPhase.Ended:
+                case TouchPhase.Canceled:
+                    if (isTracing) EndTracing();
+                    break;
             }
         }
-        //マウス流力処理
         else
         {
-            if(Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0))
             {
                 StartTracing(Input.mousePosition);
             }
-            //ドラック中
-            else if(Input.GetMouseButton(0))
+            else if (Input.GetMouseButton(0) && isTracing)
             {
-                if(isTracing)
-                {
-                    Trace(Input.mousePosition);
-                }
+                Trace(Input.mousePosition);
             }
-            else if(Input.GetMouseButtonUp(0))
+            else if (Input.GetMouseButtonUp(0) && isTracing)
             {
-                if(isTracing)
-                {
-                    EndTracing();
-                }
+                EndTracing();
             }
         }
     }
 
-    //なぞり始めの処理
     private void StartTracing(Vector2 screenPosition)
     {
-        if(moveCoroutine != null)
+        if (moveCoroutine != null)
         {
             StopCoroutine(moveCoroutine);
             SaveCurrentLine();
@@ -119,82 +164,71 @@ public class TraceSystem : MonoBehaviour
         isTracing = true;
         Trace(screenPosition);
     }
-    
-    //なぞり終わりの処理
+
     private void EndTracing()
     {
         isTracing = false;
 
-        //離したら画面中央に移動
-        if(points.Count > 0)
+        if (points.Count > 0)
         {
-            TraceDestination currentDestination = GetTraceDestinationForImages();
-            moveCoroutine = StartCoroutine(MoveLineToDestination(currentDestination));
+            Vector3 targetWorldPosition = GetTargetWorldPosition();
+            moveCoroutine = StartCoroutine(MoveLineToDestination(targetWorldPosition));
         }
     }
 
-    //なぞりの処理
     private void Trace(Vector2 screenPosition)
     {
         Vector3 worldPos = GetWorldPositionFromScreen(screenPosition);
 
-        if(!IsOverImage(worldPos,out SpriteRenderer touchedImage))
+        if (!IsOverImage(worldPos, out SpriteRenderer touchedImage))
         {
             return;
         }
 
-        //触れた画像を記録
         tracedImages.Add(touchedImage);
 
-     
-        //指定した距離以上でないと描画されない
-        if(points.Count == 0 || Vector3.Distance(points[points.Count - 1],worldPos) > minDistancePoints)
+        // 二乗距離計算で平方根（Mathf.Sqrt）の負荷をカット
+        float sqrMinDistance = minDistancePoints * minDistancePoints;
+        if (points.Count == 0 || (points[points.Count - 1] - worldPos).sqrMagnitude > sqrMinDistance)
         {
             points.Add(worldPos);
-
             lineRenderer.positionCount = points.Count;
-
             lineRenderer.SetPosition(points.Count - 1, worldPos);
         }
     }
 
-    //画像の移動先を取得
-    private TraceDestination GetTraceDestinationForImages()
+    private Vector3 GetTargetWorldPosition()
     {
-        foreach(var image in tracedImages)
+        foreach (var setting in imageSettings)
         {
-            int index = targetImages.IndexOf(image);
-
-            if(index != -1 && index < destination.Count)
+            if (setting.targetImage != null && tracedImages.Contains(setting.targetImage))
             {
-                return destination[index];
+                if (setting.moveToCenter) return Vector3.zero;
+                if (setting.destination != null) return setting.destination.TargetPosition;
             }
         }
-        return null;
+        return Vector3.zero;
     }
 
-    //中央へ移動させる処理
-    private IEnumerator MoveLineToDestination(TraceDestination targetDestination)
+    private IEnumerator MoveLineToDestination(Vector3 targetWorldCenter)
     {
-        Bounds bounds = new Bounds(points[0],Vector3.zero);
+        if (points.Count == 0) yield break;
 
-        foreach(Vector3 p in points)
+        Bounds bounds = new Bounds(points[0], Vector3.zero);
+        for (int i = 1; i < points.Count; i++)
         {
-            bounds.Encapsulate(p);
+            bounds.Encapsulate(points[i]);
         }
 
         Vector3 currentCenter = bounds.center;
-
-        Vector3 targetWorldCenter = (destination != null) ? targetDestination.TargetPosition : Vector3.zero;
         targetWorldCenter.z = currentCenter.z;
 
-        //オブジェクトの中心点から中央までの移動差分の算出
         Vector3 targetOffset = targetWorldCenter - currentCenter;
         Vector3 currentOffset = Vector3.zero;
 
-        while(currentOffset != targetOffset)
+        while (currentOffset != targetOffset)
         {
-            Vector3 nextOffset = Vector3.MoveTowards(currentOffset,targetOffset,moveSpeed * Time.deltaTime);
+            Vector3 nextOffset = Vector3.MoveTowards(currentOffset, targetOffset, moveSpeed * Time.deltaTime);
             Vector3 delta = nextOffset - currentOffset;
 
             for (int i = 0; i < points.Count; i++)
@@ -205,49 +239,43 @@ public class TraceSystem : MonoBehaviour
             currentOffset = nextOffset;
             yield return null;
         }
+
         SaveCurrentLine();
         ClearLine();
-
         HideGuideImage();
         moveCoroutine = null;
     }
 
-    //なぞり終えた画像を削除
     private void HideGuideImage()
     {
-        List<SpriteRenderer> imageRemove = new List<SpriteRenderer>(tracedImages);
-
-        foreach(var image in imageRemove)
+        foreach (var image in tracedImages)
         {
-            if(image != null)
+            if (image == null) continue;
+
+            if (settingIndexMap.TryGetValue(image, out int index))
             {
-                int index = targetImages.IndexOf(image);
+                var setting = imageSettings[index];
+                setting.targetImage = null;
+                imageSettings[index] = setting;
 
-                if(index != -1)
-                {
-                    targetImages[index] = null;
-                }
-
-                Destroy(image.gameObject);
+                settingIndexMap.Remove(image);
+                alphaCacheMap.Remove(image);
             }
+
+            Destroy(image.gameObject);
         }
         tracedImages.Clear();
     }
 
-    //できたものを保存
     private void SaveCurrentLine()
     {
-        if(points.Count == 0)
-        {
-            return;
-        }
+        if (points.Count == 0) return;
 
         GameObject saveLineObj = new GameObject("SavedLine");
         saveLineObj.transform.SetParent(this.transform);
 
         LineRenderer savedLine = saveLineObj.AddComponent<LineRenderer>();
-
-        savedLine.material = lineRenderer.material;
+        savedLine.sharedMaterial = lineRenderer.sharedMaterial;
         savedLine.startWidth = lineRenderer.startWidth;
         savedLine.endWidth = lineRenderer.endWidth;
         savedLine.useWorldSpace = lineRenderer.useWorldSpace;
@@ -256,62 +284,45 @@ public class TraceSystem : MonoBehaviour
         savedLine.endColor = lineColor;
 
         savedLine.positionCount = points.Count;
-
-        for(int i = 0; i < points.Count;i++)
-        {
-            savedLine.SetPosition(i,points[i]);
-        }
+        savedLine.SetPositions(points.ToArray());
     }
 
-    //座標変換 
     private Vector3 GetWorldPositionFromScreen(Vector2 screenPosition)
     {
-        Vector3 screenPos = screenPosition;
-
-        screenPos.z = -mainCamera.transform.position.z;
-
-        return mainCamera.ScreenToWorldPoint(screenPos);
+        return mainCamera.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, -mainCamera.transform.position.z));
     }
 
-    //指定した画像上にあるかどうか
-    private bool IsOverImage(Vector3 worldPos,out SpriteRenderer touchedImage)
+    // キャッシュ参照による「完全精度かつ超高速」な判定処理
+    private bool IsOverImage(Vector3 worldPos, out SpriteRenderer touchedImage)
     {
         touchedImage = null;
 
-        if(targetImages == null || targetImages.Count == 0)
+        foreach (var setting in imageSettings)
         {
-            return false;
-        }
+            SpriteRenderer image = setting.targetImage;
+            if (image == null || !alphaCacheMap.TryGetValue(image, out AlphaCache cache)) continue;
 
-       foreach(var image in targetImages)
-       {
-            if (image == null || image.sprite == null) continue;
-
+            // ローカル座標変換
             Vector2 localPos = image.transform.InverseTransformPoint(worldPos);
             Sprite sprite = image.sprite;
-            Rect rect = sprite.rect;
 
-            //ローカル座標をテクスチャ内のピクセル位置に菅さん
+            // ローカル座標からピクセルインデックスの算出
             float pixelX = localPos.x * sprite.pixelsPerUnit + sprite.pivot.x;
             float pixelY = localPos.y * sprite.pixelsPerUnit + sprite.pivot.y;
 
-            //座標が画像内に収まってるか判定
-            if(pixelX >= 0 && pixelX < rect.width && pixelY >= 0 && pixelY < rect.height)
-            {
-                Texture2D texture = sprite.texture;
-                Color color = texture.GetPixel((int)(rect.x + pixelX),(int)(rect.y + pixelY));
+            int x = (int)pixelX;
+            int y = (int)pixelY;
 
-                if(color.a > 0.1f)
-                {
-                    touchedImage = image;
-                    return true;
-                }
+            // キャッシュしたBool配列の高速アクセス（計算コスト O(1)）
+            if (cache.IsOpaque(x, y))
+            {
+                touchedImage = image;
+                return true;
             }
-       }
-       return false;
+        }
+        return false;
     }
 
-    //今かかかれている線を削除して初期化
     private void ClearLine()
     {
         points.Clear();
