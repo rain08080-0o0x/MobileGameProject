@@ -1,55 +1,61 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
-/// <summary>
-/// ゲーム開始からの経過時間を表示するクラス
-/// </summary>
-public class ElapsedTimeUI : MonoBehaviour
+public sealed class ElapsedTimeUI : MonoBehaviour
 {
-    /// <summary>
-    /// 時間表示用テキスト
-    /// </summary>
-    [SerializeField]
-    [Tooltip("経過時間を表示するTextMeshProUGUIを設定します。")]
-    private TextMeshProUGUI timeText;
+    [SerializeField] private Graphic timeText;
 
-    /// <summary>
-    /// 経過時間
-    /// </summary>
-    private float elapsedTime = 0.0f;
-
-    /// <summary>
-    /// タイマーが動いているか
-    /// </summary>
+    private float elapsedTime;
     private bool isRunning = true;
 
-    /// <summary>
-    /// 毎フレーム時間を更新
-    /// </summary>
+    private void Awake()
+    {
+        if (timeText is Text legacyText)
+        {
+            legacyText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        }
+
+        UpdateText();
+    }
+
     private void Update()
     {
-        // タイマー停止中なら何もしない
-        if (!isRunning)
+        if (!isRunning || timeText == null)
         {
             return;
         }
 
-        // 経過時間を増やす
         elapsedTime += Time.deltaTime;
-
-        // 分と秒に変換
-        int minutes = Mathf.FloorToInt(elapsedTime / 60.0f);
-        int seconds = Mathf.FloorToInt(elapsedTime % 60.0f);
-
-        // TIME 00:00 形式で表示
-        timeText.text = $"TIME {minutes:00}:{seconds:00}";
+        UpdateText();
     }
 
-    /// <summary>
-    /// タイマーを停止する
-    /// </summary>
     public void StopTimer()
     {
         isRunning = false;
+    }
+
+    public void ResetTimer()
+    {
+        elapsedTime = 0f;
+        isRunning = true;
+        UpdateText();
+    }
+
+    private void UpdateText()
+    {
+        var minutes = Mathf.FloorToInt(elapsedTime / 60f);
+        var seconds = Mathf.FloorToInt(elapsedTime % 60f);
+        var value = $"TIME {minutes:00}:{seconds:00}";
+
+        switch (timeText)
+        {
+            case Text legacyText:
+                legacyText.text = value;
+                break;
+            case TMP_Text tmpText:
+                tmpText.text = value;
+                break;
+        }
     }
 }

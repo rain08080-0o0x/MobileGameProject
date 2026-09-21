@@ -1,0 +1,109 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1bd6de283634dfba5cd093887c02e0e, type: 3}
+  m_Name: Framy2
+  m_EditorClassIdentifier: Assembly-CSharp::TraceMagicCircleDefinition
+  displayName: "\u5186\u306E\u9B54\u6CD5\u9663"
+  basePower: 150
+  drawCount: 3
+  shapes:
+  - pattern: 3
+    position: {x: -1.5060078, y: 1.2923898}
+    size: 2.05
+    rectangleAspectRatio: 1.5
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: -3.0120153, y: 2.7663548}
+    size: 0.8157544
+    rectangleAspectRatio: 0.792477
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 3
+    position: {x: -0.074766845, y: 2.8090785}
+    size: 1.1211926
+    rectangleAspectRatio: 1.5
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: -3.4926567, y: 0.3631506}
+    size: 0.5166887
+    rectangleAspectRatio: 2.025642
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: -4.0694265, y: 0.64085406}
+    size: 0.23898524
+    rectangleAspectRatio: 1.9385495
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 2.2002668, y: -0.69425935}
+    size: 1.2643522
+    rectangleAspectRatio: 2.19358
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 5.116154, y: 0.55540687}
+    size: 0.35647547
+    rectangleAspectRatio: 3.127344
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 2
+    position: {x: -2.371162, y: 1.516689}
+    size: 0.07
+    rectangleAspectRatio: 1.5
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 2
+    position: {x: -1.0146862, y: 1.516689}
+    size: 0.07
+    rectangleAspectRatio: 1.5
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: -0.18157591, y: -3.1188247}
+    size: 1.0614145
+    rectangleAspectRatio: 0.3507251
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 0.99332476, y: -3.1188238}
+    size: 1.0720961
+    rectangleAspectRatio: 0.3424657
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 3.5353794, y: -3.076102}
+    size: 1.0614154
+    rectangleAspectRatio: 0.3489527
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0
+  - pattern: 7
+    position: {x: 4.5927916, y: -3.0867822}
+    size: 1.0720956
+    rectangleAspectRatio: 0.34246597
+    lineStart: {x: -1, y: 0}
+    lineEnd: {x: 1, y: 0}
+    usage: 0

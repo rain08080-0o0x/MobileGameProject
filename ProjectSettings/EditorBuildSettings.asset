@@ -6,7 +6,19 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/TraceGame.unity
-    guid: d22f26495ff05fe47b5dbeabb6079558
+    path: Assets/Scenes/MainScene.unity
+    guid: b14bebf09989fc94ca979d8dcb4f68da
+  - enabled: 1
+    path: Assets/Scenes/TraceSysTest.unity
+    guid: d9db0e0f47561084885b38084f768c22
+  - enabled: 1
+    path: Assets/Scenes/BattleScene.unity
+    guid: 245b3dea8b619f74a80f227f05e90399
+  - enabled: 1
+    path: Assets/Scenes/NumericHudScene.unity
+    guid: 94c19194df2f4c23867a5748a4a31f74
+  - enabled: 1
+    path: Assets/Scenes/BarHudScene.unity
+    guid: 3086175ddc71403d9bf6a871f0c67d82
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0
