@@ -5,13 +5,21 @@ using UnityEngine.SceneManagement;
 
 public sealed class TraceSceneLoader : MonoBehaviour
 {
+    private enum DrawingMode
+    {
+        EditorShapes,
+        ImageShapes,
+    }
+
     private enum BattleUiMode
     {
         Numeric,
         Bar,
     }
 
-    [SerializeField] private string drawingSceneName = "TraceSysTest";
+    [SerializeField] private DrawingMode drawingMode = DrawingMode.EditorShapes;
+    [SerializeField] private string editorDrawingSceneName = "EditorTraceScene";
+    [SerializeField] private string imageDrawingSceneName = "TraceSysTest";
     [SerializeField] private string battleSceneName = "BattleScene";
     [SerializeField] private BattleUiMode battleUiMode = BattleUiMode.Numeric;
     [SerializeField] private string numericUiSceneName = "NumericHudScene";
@@ -19,6 +27,10 @@ public sealed class TraceSceneLoader : MonoBehaviour
 
     private IEnumerator Start()
     {
+        var usesEditorShapes = drawingMode == DrawingMode.EditorShapes;
+        var drawingSceneName = usesEditorShapes
+            ? editorDrawingSceneName
+            : imageDrawingSceneName;
         yield return SceneManager.LoadSceneAsync(drawingSceneName, LoadSceneMode.Additive);
         yield return SceneManager.LoadSceneAsync(battleSceneName, LoadSceneMode.Additive);
         var uiSceneName = battleUiMode == BattleUiMode.Numeric
@@ -26,19 +38,22 @@ public sealed class TraceSceneLoader : MonoBehaviour
             : barUiSceneName;
         yield return SceneManager.LoadSceneAsync(uiSceneName, LoadSceneMode.Additive);
 
-        var traceSystem = FindFirstObjectByType<TraceSystem>();
+        ITraceDrawingSource traceSystem = usesEditorShapes
+            ? FindFirstObjectByType<TraceSystem>()
+            : FindFirstObjectByType<ImageTraceSystem>();
         var battleController = FindFirstObjectByType<TraceBattleController>();
         var selectionController = FindFirstObjectByType<TraceMagicCircleSelectionController>();
         var playerHealth = FindFirstObjectByType<TracePlayerHealth>();
         var enemyHealth = FindFirstObjectByType<TraceEnemyHealth>();
         var battleUI = FindFirstObjectByType<TraceBattleUI>();
         if (traceSystem == null || battleController == null || playerHealth == null ||
-            enemyHealth == null || battleUI == null || selectionController == null)
+            enemyHealth == null || battleUI == null ||
+            (usesEditorShapes && selectionController == null))
         {
             throw new InvalidOperationException("Additive battle scenes are missing required components.");
         }
 
         battleUI.Initialize(playerHealth, enemyHealth, battleController, traceSystem);
-        battleController.Initialize(traceSystem, selectionController);
+        battleController.Initialize(traceSystem, selectionController, usesEditorShapes);
     }
 }

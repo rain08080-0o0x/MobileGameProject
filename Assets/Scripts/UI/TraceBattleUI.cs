@@ -13,7 +13,7 @@ public sealed class TraceBattleUI : MonoBehaviour
     private TracePlayerHealth playerHealth;
     private TraceEnemyHealth enemyHealth;
     private TraceBattleController battleController;
-    private TraceSystem traceSystem;
+    private ITraceDrawingSource traceSystem;
     private HealthDisplay playerDisplay;
     private HealthDisplay enemyDisplay;
     private bool timerStopped;
@@ -22,7 +22,7 @@ public sealed class TraceBattleUI : MonoBehaviour
         TracePlayerHealth inputPlayerHealth,
         TraceEnemyHealth inputEnemyHealth,
         TraceBattleController inputBattleController,
-        TraceSystem inputTraceSystem)
+        ITraceDrawingSource inputTraceSystem)
     {
         playerHealth = inputPlayerHealth;
         enemyHealth = inputEnemyHealth;

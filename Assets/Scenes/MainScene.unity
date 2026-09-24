@@ -146,9 +146,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 86a775717ec949d7ab6ae96bc6c754de, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TraceSceneLoader
-  drawingSceneName: TraceSysTest
+  drawingMode: 1
+  editorDrawingSceneName: EditorTraceScene
+  imageDrawingSceneName: TraceSysTest
   battleSceneName: BattleScene
   battleUiMode: 0
   numericUiSceneName: NumericHudScene

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(LineRenderer))]
-public sealed class TraceSystem : MonoBehaviour
+public sealed class TraceSystem : MonoBehaviour, ITraceDrawingSource
 {
     private static readonly Color ActiveTargetColor = new(0.18f, 0.89f, 0.9f, 1f);
     private static readonly Color InactiveTargetColor = new(0.36f, 0.39f, 0.42f, 0.65f);

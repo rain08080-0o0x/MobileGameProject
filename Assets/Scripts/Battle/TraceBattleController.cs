@@ -6,6 +6,7 @@ using UnityEngine;
 [DefaultExecutionOrder(100)]
 public sealed class TraceBattleController : MonoBehaviour
 {
+    private const int ImageAttackBasePower = 100;
     private static readonly Vector3 EnemyPlayerAttackPosition = new(0f, 2.15f, -0.05f);
     private static readonly Vector3 EnemyTurnPosition = new(0f, 0f, -0.05f);
 
@@ -22,9 +23,10 @@ public sealed class TraceBattleController : MonoBehaviour
 
     private readonly List<TraceShapeAttackResult> shapeResults = new();
     private readonly List<TraceGlyphAttack> storedGlyphs = new();
-    private TraceSystem traceSystem;
+    private ITraceDrawingSource traceSystem;
     private TraceMagicCircleSelectionController selectionController;
     private TraceMagicCircleDefinition selectedMagicCircle;
+    private bool usesEditorShapes;
     private bool initialized;
 
     public TraceBattlePhase Phase { get; private set; }
@@ -39,8 +41,9 @@ public sealed class TraceBattleController : MonoBehaviour
         shapeResults.Count > 0 ? shapeResults[^1] : null;
 
     public void Initialize(
-        TraceSystem inputTraceSystem,
-        TraceMagicCircleSelectionController inputSelectionController)
+        ITraceDrawingSource inputTraceSystem,
+        TraceMagicCircleSelectionController inputSelectionController,
+        bool inputUsesEditorShapes)
     {
         if (initialized)
         {
@@ -49,9 +52,10 @@ public sealed class TraceBattleController : MonoBehaviour
 
         traceSystem = inputTraceSystem;
         selectionController = inputSelectionController;
+        usesEditorShapes = inputUsesEditorShapes;
         if (traceSystem == null || playerHealth == null || enemyAttackController == null ||
             enemyHealth == null || enemyView == null || damageSettings == null ||
-            selectionController == null)
+            (usesEditorShapes && selectionController == null))
         {
             throw new InvalidOperationException("Trace battle references are not configured.");
         }
@@ -59,8 +63,15 @@ public sealed class TraceBattleController : MonoBehaviour
         initialized = true;
         traceSystem.BatchCompleted += OnBatchCompleted;
         traceSystem.StrokeScored += OnStrokeScored;
-        selectionController.MagicCircleSelected += OnMagicCircleSelected;
-        BeginMagicCircleSelection();
+        if (usesEditorShapes)
+        {
+            selectionController.MagicCircleSelected += OnMagicCircleSelected;
+            BeginMagicCircleSelection();
+        }
+        else
+        {
+            BeginPlayerTurn();
+        }
     }
 
     private void OnDestroy()
@@ -93,12 +104,15 @@ public sealed class TraceBattleController : MonoBehaviour
     {
         selectedMagicCircle = magicCircle;
         selectionController.SetSelectionEnabled(false);
-        traceSystem.SetMagicCircle(magicCircle);
+        ((TraceSystem)traceSystem).SetMagicCircle(magicCircle);
         BeginPlayerTurn();
     }
 
     private void BeginPlayerTurn()
     {
+        ClearStoredGlyphs();
+        shapeResults.Clear();
+        DamageResult = default;
         Phase = TraceBattlePhase.PlayerTurn;
         enemyView.SetPreparing(false);
         enemyView.SetVisible(false);
@@ -148,11 +162,11 @@ public sealed class TraceBattleController : MonoBehaviour
             durations[index] = shapeResults[index].DrawingSeconds;
         }
 
+        var basePower = usesEditorShapes
+            ? selectedMagicCircle.BasePower
+            : ImageAttackBasePower;
         DamageResult = TraceDamageCalculator.CalculateDamage(
-            selectedMagicCircle,
-            damageSettings,
-            accuracies,
-            durations);
+            basePower, damageSettings, accuracies, durations);
 
         Phase = TraceBattlePhase.PlayerAttackResolution;
         enemyView.transform.position = EnemyPlayerAttackPosition;
@@ -207,7 +221,14 @@ public sealed class TraceBattleController : MonoBehaviour
         }
         else
         {
-            BeginMagicCircleSelection();
+            if (usesEditorShapes)
+            {
+                BeginMagicCircleSelection();
+            }
+            else
+            {
+                BeginPlayerTurn();
+            }
         }
     }
 
