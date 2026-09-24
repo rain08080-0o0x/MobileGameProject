@@ -42,6 +42,8 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
     private TraceMagicCircleDefinition definition;
     private SerializedObject serializedDefinition;
     private SerializedProperty displayNameProperty;
+    private SerializedProperty availableInGameProperty;
+    private SerializedProperty typeProperty;
     private SerializedProperty basePowerProperty;
     private SerializedProperty drawCountProperty;
     private SerializedProperty shapesProperty;
@@ -141,6 +143,19 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
         EditorGUILayout.PropertyField(displayNameProperty, new GUIContent("表示名"));
         EditorGUILayout.PropertyField(basePowerProperty, new GUIContent("基礎威力"), GUILayout.Width(180f));
         EditorGUILayout.PropertyField(drawCountProperty, new GUIContent("描画回数"), GUILayout.Width(180f));
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.BeginHorizontal();
+        availableInGameProperty.boolValue = EditorGUILayout.Popup(
+            "ゲーム内状態",
+            availableInGameProperty.boolValue ? 0 : 1,
+            new[] { "使用可能", "作成中" },
+            GUILayout.Width(280f)) == 0;
+        typeProperty.enumValueIndex = EditorGUILayout.Popup(
+            "種別",
+            typeProperty.enumValueIndex,
+            new[] { "攻撃", "防御" },
+            GUILayout.Width(220f));
         EditorGUILayout.EndHorizontal();
         EditorGUILayout.Space(4f);
     }
@@ -829,6 +844,8 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
 
         serializedDefinition = new SerializedObject(definition);
         displayNameProperty = serializedDefinition.FindProperty("displayName");
+        availableInGameProperty = serializedDefinition.FindProperty("availableInGame");
+        typeProperty = serializedDefinition.FindProperty("type");
         basePowerProperty = serializedDefinition.FindProperty("basePower");
         drawCountProperty = serializedDefinition.FindProperty("drawCount");
         shapesProperty = serializedDefinition.FindProperty("shapes");
@@ -847,6 +864,9 @@ public sealed class TraceMagicCircleEditorWindow : EditorWindow
         }
 
         var asset = CreateInstance<TraceMagicCircleDefinition>();
+        var newAssetSerializedObject = new SerializedObject(asset);
+        newAssetSerializedObject.FindProperty("availableInGame").boolValue = false;
+        newAssetSerializedObject.ApplyModifiedPropertiesWithoutUndo();
         AssetDatabase.CreateAsset(asset, path);
         AssetDatabase.SaveAssets();
         Selection.activeObject = asset;

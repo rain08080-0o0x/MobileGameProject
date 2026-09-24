@@ -40,9 +40,19 @@ public sealed class TraceBattleHud : MonoBehaviour
                     $"{result.BasePower} × {result.AccuracyMultiplier:0.00} × " +
                     $"{result.CountMultiplier:0.00} × {result.TempoMultiplier:0.00} = {result.FinalDamage}");
                 break;
+            case TraceBattlePhase.PlayerDefenseResolution:
+                var defenseResult = battleController.DamageResult;
+                GUILayout.Label(
+                    $"防御値：{defenseResult.BasePower} × {defenseResult.AccuracyMultiplier:0.00} × " +
+                    $"{defenseResult.CountMultiplier:0.00} × {defenseResult.TempoMultiplier:0.00} = " +
+                    $"{defenseResult.FinalDamage}");
+                break;
             case TraceBattlePhase.EnemyTurn:
                 GUILayout.Label(enemyAttackController.AttackApplied
-                    ? $"敵の攻撃！  {enemyAttackController.LastDamage}ダメージ"
+                    ? $"敵の攻撃！  {enemyAttackController.LastDamage}ダメージ" +
+                      (enemyAttackController.LastDamageReduction > 0
+                          ? $"（{enemyAttackController.LastDamageReduction}軽減）"
+                          : string.Empty)
                     : $"敵の攻撃まで {Mathf.Max(0f, enemyAttackController.TimeRemaining):0.0}秒");
                 break;
             case TraceBattlePhase.Victory:

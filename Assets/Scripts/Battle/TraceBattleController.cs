@@ -26,6 +26,7 @@ public sealed class TraceBattleController : MonoBehaviour
     private ITraceDrawingSource traceSystem;
     private TraceMagicCircleSelectionController selectionController;
     private TraceMagicCircleDefinition selectedMagicCircle;
+    private int pendingDamageReduction;
     private bool usesEditorShapes;
     private bool initialized;
 
@@ -128,6 +129,11 @@ public sealed class TraceBattleController : MonoBehaviour
 
         for (var index = 0; index < strokeResults.Length; index++)
         {
+            if (usesEditorShapes && selectedMagicCircle.Type == TraceMagicCircleType.Defense)
+            {
+                continue;
+            }
+
             var strokeResult = strokeResults[index];
             var glyphObject = new GameObject($"Stored Trace {index + 1}");
             glyphObject.transform.SetParent(transform, false);
@@ -167,6 +173,14 @@ public sealed class TraceBattleController : MonoBehaviour
             : ImageAttackBasePower;
         DamageResult = TraceDamageCalculator.CalculateDamage(
             basePower, damageSettings, accuracies, durations);
+
+        if (usesEditorShapes && selectedMagicCircle.Type == TraceMagicCircleType.Defense)
+        {
+            pendingDamageReduction = DamageResult.FinalDamage;
+            Phase = TraceBattlePhase.PlayerDefenseResolution;
+            StartCoroutine(ResolvePlayerDefense());
+            return;
+        }
 
         Phase = TraceBattlePhase.PlayerAttackResolution;
         enemyView.transform.position = EnemyPlayerAttackPosition;
@@ -208,12 +222,24 @@ public sealed class TraceBattleController : MonoBehaviour
         yield return RunEnemyTurn();
     }
 
+    private IEnumerator ResolvePlayerDefense()
+    {
+        traceSystem.ClearCollectedLines();
+        ClearStoredGlyphs();
+        yield return new WaitForSeconds(playerAttackResultDuration);
+        yield return RunEnemyTurn();
+    }
+
     private IEnumerator RunEnemyTurn()
     {
         Phase = TraceBattlePhase.EnemyTurn;
         enemyView.transform.position = EnemyTurnPosition;
         enemyView.SetVisible(true);
-        yield return enemyAttackController.Execute(enemyView, playerHealth);
+        yield return enemyAttackController.Execute(
+            enemyView,
+            playerHealth,
+            pendingDamageReduction);
+        pendingDamageReduction = 0;
 
         if (playerHealth.IsDefeated)
         {

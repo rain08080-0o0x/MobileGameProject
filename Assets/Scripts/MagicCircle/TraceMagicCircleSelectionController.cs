@@ -16,7 +16,8 @@ public sealed class TraceMagicCircleSelectionController : MonoBehaviour
 
     public void SelectMagicCircle(TraceMagicCircleDefinition magicCircle)
     {
-        if (SelectionEnabled && HasDisplayedShapes(magicCircle))
+        if (SelectionEnabled && magicCircle != null && magicCircle.AvailableInGame &&
+            HasDisplayedShapes(magicCircle))
         {
             MagicCircleSelected?.Invoke(magicCircle);
         }
@@ -39,7 +40,7 @@ public sealed class TraceMagicCircleSelectionController : MonoBehaviour
         for (var index = 0; index < magicCircles.Length; index++)
         {
             var magicCircle = magicCircles[index];
-            if (magicCircle == null)
+            if (magicCircle == null || !magicCircle.AvailableInGame)
             {
                 continue;
             }
@@ -48,6 +49,7 @@ public sealed class TraceMagicCircleSelectionController : MonoBehaviour
             var wasEnabled = GUI.enabled;
             GUI.enabled = displayedShapeCount > 0;
             if (GUILayout.Button(
+                    $"[{GetTypeName(magicCircle.Type)}]  " +
                     $"{GetPatternSymbols(magicCircle)}  {magicCircle.DisplayName}    " +
                     $"基礎威力 {magicCircle.BasePower}    {displayedShapeCount}図形",
                     GUILayout.Height(64f)))
@@ -72,6 +74,11 @@ public sealed class TraceMagicCircleSelectionController : MonoBehaviour
             }
         }
         return symbols;
+    }
+
+    private static string GetTypeName(TraceMagicCircleType type)
+    {
+        return type == TraceMagicCircleType.Defense ? "防御" : "攻撃";
     }
 
     private static bool HasDisplayedShapes(TraceMagicCircleDefinition magicCircle)

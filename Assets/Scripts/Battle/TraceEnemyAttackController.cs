@@ -12,12 +12,22 @@ public sealed class TraceEnemyAttackController : MonoBehaviour
 
     public float TimeRemaining { get; private set; }
     public int LastDamage { get; private set; }
+    public int LastDamageReduction { get; private set; }
     public bool AttackApplied { get; private set; }
 
     public IEnumerator Execute(TraceEnemyView enemyView, TracePlayerHealth playerHealth)
     {
+        return Execute(enemyView, playerHealth, 0);
+    }
+
+    public IEnumerator Execute(
+        TraceEnemyView enemyView,
+        TracePlayerHealth playerHealth,
+        int damageReduction)
+    {
         AttackApplied = false;
         LastDamage = 0;
+        LastDamageReduction = 0;
         TimeRemaining = windupDuration;
         enemyView.SetPreparing(true);
 
@@ -27,7 +37,8 @@ public sealed class TraceEnemyAttackController : MonoBehaviour
             yield return null;
         }
 
-        LastDamage = playerHealth.TakeDamage(attackDamage);
+        LastDamageReduction = Mathf.Min(attackDamage, Mathf.Max(0, damageReduction));
+        LastDamage = playerHealth.TakeDamage(attackDamage - LastDamageReduction);
         AttackApplied = true;
         enemyView.SetPreparing(false);
         yield return ShakeCamera();
